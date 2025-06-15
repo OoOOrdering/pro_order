@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>OAuth 콜백 테스트</title>
+    <script>
+        window.onload = function () {
+            const params = new URLSearchParams(window.location.search);
+            const access = params.get("access");
+            const refresh = params.get("refresh");
+            const access_token = params.get("access_token");
+            const oauth = params.get("oauth");
+
+            if (access && refresh) {
+                document.getElementById("result").innerText =
+                    `✅ 기존 유저 로그인 성공\n\nAccess: ${access}\nRefresh: ${refresh}`;
+            } else if (access_token && oauth === "naver") {
+                document.getElementById("result").innerText =
+                    `🆕 유저 정보 없음 (회원가입 유도 필요)\n\n네이버 Access Token: ${access_token}`;
+            } else {
+                document.getElementById("result").innerText =
+                    "❌ 유효한 토큰 정보를 찾을 수 없습니다.";
+            }
+        };
+    </script>
+</head>
+<body>
+    <h2>OAuth Callback 결과</h2>
+    <pre id="result" style="white-space: pre-wrap; background: #eee; padding: 1rem;"></pre>
+</body>
+</html>

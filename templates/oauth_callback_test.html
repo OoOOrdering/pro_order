@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>OAuth 콜백 테스트</title>
+    <script>
+        window.onload = function () {
+            const params = new URLSearchParams(window.location.search);
+            const access_token = params.get("access_token");
+            const csrf_token = params.get("csrf_token");
+
+            if (access_token && csrf_token) {
+                document.getElementById("result").innerText =
+                    `✅ 기존 유저 로그인 성공\n\naccess_token: ${access_token}\ncsrf_token: ${csrf_token}`;
+            } else {
+                document.getElementById("result").innerText =
+                    "❌ 유효한 토큰 정보를 찾을 수 없습니다.";
+            }
+        };
+    </script>
+</head>
+<body>
+    <h2>OAuth Callback 결과</h2>
+    <pre id="result" style="white-space: pre-wrap; background: #eee; padding: 1rem;"></pre>
+</body>
+</html>

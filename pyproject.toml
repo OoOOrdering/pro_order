@@ -1,0 +1,65 @@
+[project]
+name = "myfavidolback"
+version = "0.1.0"
+description = ""
+authors = [
+    {name = "LucasKim4321",email = "xowls0131@naver.com"}
+]
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "django (>=5.2,<6.0)",
+    "djangorestframework (>=3.16.0,<4.0.0)",
+    "djangorestframework-simplejwt (>=5.5.0,<6.0.0)",
+    "certifi (>=2025.1.31,<2026.0.0)",
+    "django-storages (>=1.14.6,<2.0.0)",
+    "boto3 (>=1.37.38,<2.0.0)",
+    "python-dotenv (>=1.1.0,<2.0.0)",
+    "psycopg2-binary (>=2.9.10,<3.0.0)",
+    "django-filter (>=25.1,<26.0)",
+    "django-cors-headers (>=4.7.0,<5.0.0)",
+    "drf-yasg (>=1.21.10,<2.0.0)",
+    "pillow (>=11.2.1,<12.0.0)",
+    "django-filter (>=25.1,<26.0)",
+    "requests (>=2.32.3,<3.0.0)",
+    "cloudinary (>=1.44.0,<2.0.0)",
+    "django-cloudinary-storage (==0.3.0)",
+    "charset-normalizer (==3.4.2)",
+]
+
+[tool.poetry]
+package-mode = false
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry.group.dev.dependencies]
+black = "^25.1.0"
+mypy = "^1.15.0"
+pytest = "^8.3.5"
+pytest-cov = "^6.1.1"
+isort = "^6.0.1"
+ruff = "^0.11.7"
+
+#[tool.black]
+#line-length = 99
+
+# isort 설정 black 스타일에 맞춰 정렬
+pytest-django = "^4.11.1"
+[tool.isort]
+profile = "black"
+
+[tool.mypy]
+ignore_errors = true
+#ignore_missing_imports = true
+#follow_imports = "silent"
+#warn_unused_configs = true
+
+[tool.pytest.ini_options]
+testpaths = ["apps"]
+DJANGO_SETTINGS_MODULE = "config.settings.settings"
+python_files = ["test_*.py", "*_test.py", "tests.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "--cov=apps --cov-report=term-missing"

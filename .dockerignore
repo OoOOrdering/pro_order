@@ -1,0 +1,51 @@
+# Python bytecode
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# 가상환경
+.venv/
+env/
+venv/
+
+# Git 관련
+.git
+.gitignore
+
+# IDE 설정
+.vscode/
+.idea/
+
+# 환경변수 및 시크릿 설정
+.env
+.env.*
+*.env
+envs/
+.config_secret/
+app/.config_secret/
+secret.json
+
+# 로그 파일
+*.log
+
+# 데이터베이스 (로컬용)
+db.sqlite3
+db.sqlite3-journal
+
+# pytest, coverage 등 테스트 캐시
+.pytest_cache/
+.coverage
+htmlcov/
+.cache
+.ruff_cache/
+
+# 빌드/배포 불필요 폴더
+dist/
+build/
+docs/_build/
+
+# macOS 시스템 파일
+.DS_Store
+.AppleDouble
+.apdisk

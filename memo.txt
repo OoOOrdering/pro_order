@@ -1,0 +1,1588 @@
+----------
+ORDER
+----------
+
+프로젝트 구조
+project_name/
+├── .github/                # 깃허브 설정 파일 ( 커밋템플릿, 이슈템플릿, pr 템플릿, CI / CD 등 )
+│   ├── COMMIT_TEMPLATE/    # 하위에 커밋 템플릿을 정의
+│   ├── ISSUE_TEMPLATE/     # 하위에 이슈템플릿을 정의
+│   └── workflows/          # 하위에 CI / CD 스크립트를 정의
+│       ├── checks.yml     # develop 또는 main 브랜치에 Push 또는 PR Merge 시 데이터 베이스 연결 확인, 코드 포매팅 체크, 테스트 통과 여부를 검사하는 스크립트
+│       └── deploy.yml     # develop 또는 main 브랜치에 Push 또는 Merge시 배포 자동화를 구현한 스크립트
+├── config/                 # 프로젝트 설정 파일 (settings, urls 등)
+│   ├── __init__.py
+│   ├── asgi.py
+│   ├── settings.py
+│   ├── urls.py
+│   └── wsgi.py
+├── apps/                   # 앱 디렉토리 (앱별로 디렉토리를 나눔)
+│   ├── app_name1/
+│   │   ├── migrations/     # 마이그레이션 파일
+│   │   ├── services/       # 앱에서 사용되는 서비스 로직을 구현하는 폴더
+│   │   ├── repository/     # 앱의 데이터베이스 모델에 관련된 CRUD 동작을 정의하는 폴더
+│   │   ├── admin.py        # Django Admin 관련 설정
+│   │   ├── apps.py         # 앱 설정
+│   │   ├── models.py       # 모델 정의
+│   │   ├── tests.py        # 테스트 코드
+│   │   ├── urls.py         # 앱 전용 URL 라우팅
+│   │   └── views.py        # 뷰 로직
+│   ├── app_name2/          # 다른 앱
+│   │   ├── migrations/     # 마이그레이션 파일
+│   │   ├── services/       # 앱에서 사용되는 서비스 로직을 구현하는 폴더
+│   │   ├── repository/     # 앱의 데이터베이스 모델에 관련된 CRUD 동작을 정의하는 폴더
+│   │   ├── admin.py        # Django Admin 관련 설정
+│   │   ├── apps.py         # 앱 설정
+│   │   ├── models.py       # 모델 정의
+│   │   ├── tests.py        # 테스트 코드
+│   │   ├── urls.py         # 앱 전용 URL 라우팅
+│   │   └── views.py        # 뷰 로직
+│   └── ...
+├── envs/                   # 환경변수 파일들
+│   ├── .env                # 로컬 및 배포 환경에서 서버 구동 및 테스트 시 필요한 환경변수
+│   └── .env.prod           # 배포 환경에서 서버 구동 및 테스트 시 필요한 환경변수
+├── resources/              # 초기 설정 파일 및 스크립트, nginx, docker, kubernetes 의 yaml 파일
+│   ├── nginx/
+│   │   └── nginx.conf      # 모델 정의
+│   ├── docker/
+│   │   ├── dockerfile      # 도커 이미지 빌드 파일
+│   │   └── docker-compose.yml   # 도커 컨테이너 정의 파일
+│   ├── kubernetes/
+│   └── scripts/
+│       ├── entrypoint.sh   # 도커 이미지 빌드 시 최종적으로 실행될 스크립트 ( 일반적으로 서버 실행 명령 )
+│       └── test.sh         # 코드 포매팅 및 테스트코드 실행 시 사용되는 스크립트
+├── manage.py               # 관리 명령어
+├── poetry.lock             # poetry 의존성 패키지 설치 정보
+└── pyproject.toml          # poetry 의존성 패키지 목록 및 설정
+
+
+poetry 초기화
+poetry init
+
+poetry로 생성된 가상환경 경로 확인
+poetry env info --path
+경로 확인 후 인터프리터 설정
+
+가상환경 터미널에 활성화 (안해도됨)
+poetry env activate
+반환 되는 값 복사해서 다시 실행
+
+전체 패키지 설치 (개발용 포함)
+poetry install
+
+배포용 패키지만 설치 (dev 제외)
+poetry install --no-dev
+안될시
+poetry install --no-root
+
+라이브러리 제거
+poetry remove 라이브러리 이름
+
+[tool.poetry.dependencies] 에는 배포 환경의 라이브러리를 설치
+poetry add 라이브러리 이름
+
+[tool.poetry.group.dev.dependencies] 에 개발환경의 라이브러리 설치
+poetry add -G dev 라이브러리 이름
+또는
+poetry add --group=dev 라이브러리 이름
+
+
+docker-compose를 사용해 PostgreSQL DB생성
+
+postgres 셋팅
+docker-compose-local.yml 생성
+
+PostgreSQL 이미지 생성 및 실행
+docker-compose -f resources/docker/docker-compose-local.yml up -d
+docker-compose -f resources/docker/docker-compose-prod.yml up -d
+
+실행 중인 도커 이미지 확인 (이미지 id 확인 가능)
+docker ps
+
+환경 변수 채크
+docker exec wistar_db printenv | grep POSTGRES
+
+도커 컨테이너 데이터베이스 접속
+docker exec -it wistar_db psql -U postgres -d oz_project
+
+도커 이미지 중지
+docker stop 이미지id
+
+팀원이 해야할 일
+
+깃 클론
+git clone https://github.com/09-MainProject/MyFavIdolBack.git
+
+pyenv로 파이썬 3.13.1버전 설치
+pyenv install 3.13.1
+
+poetry가 생성한 pyproject.toml에 작성된 라이브러리 목록을 기반으로 라이브러리 설치 및 초기화
+전체 패키지 설치 (개발용 포함)
+poetry install
+안될시
+poetry install --no-root
+
+git config 자동 설정
+실행 권할 설정
+chmod +x resources/scripts/setup.sh
+setup.sh 실행
+resources/scripts/setup.sh
+
+ci테스트 실행
+chmod +x ./resources/scripts/test.sh
+./resources/scripts/test.sh
+
+가상환경 없으면 가상환경을 자동생성함. 기본설정 : 전역위치에 가상화경 생성
+혹은 가상환경을 미리 만든 상태에선 가상환경에 라이브러리를 설치
+
+전역 가상환경 위치 확인
+poetry env info --path
+
+전역 가상환경 제거
+poetry env remove python
+
+가상환경 생성
+python3 -m venv .venv
+
+설정 파일 생성
+django-admin startproject config .
+
+앱 만들기
+python3 manage.py startapp 앱이름
+
+하위 폴더에 앱 만들기 (만들어질 앱이름의 폴더가 경로에 있어야함)
+python3 manage.py startapp 앱이름 경로
+
+postgresql db 설치
+brew install postgresql
+
+PostgreSQL 서버 실행
+brew services start postgresql
+
+실행 확인
+brew services
+
+PostgreSQL 설치시 자동으로 생성되는 데이터베이스인 postgres에 접속
+psql postgres
+
+유저 확인
+본인의 맥 유저 이름 혹은 postgres라는 유저가 있어야 정상
+\du
+
+새로운 유저를 생성
+CREATE USER 유저이름
+
+비밀번호 설정
+ALTER USER root WITH PASSWORD '비밀번호';
+
+권한 설정
+ALTER USER root WITH SUPERUSER;
+
+유저 다시 확인
+\du
+
+db 생성
+CREATE DATABASE 데이터베이스이름;
+
+db 목록 확인
+\l
+
+
+새로 생성된 유저 혹은 기본 유저를 활용하여 생성된 데이터베이스로 접속
+psql 데이터베이스 이름
+또는
+psql -U 유저이름 -d 데이터베이스이름 -W
+(W옵션은 비밀번호를 입력하여 접속하는 것 입니다. 필수는 아님)
+
+테이블 내역을 조회
+\dt
+
+PostgreSQL을 Django에서 사용하려면 필요한 psycopg 설치
+poetry add psycopg2-binary
+
+
+- 프로젝트에서 환경 변수로 관리해야하는 것
+    - 데이터베이스 연결 정보
+    - AWS 또는 NCP 등의 클라우드 연결 정보
+    - 소셜 로그인 Client ID, Client Secret, Redirect URI
+    - 외부 API 인증 정보
+    - 프로젝트 시크릿 키 ( 매우 중요 ! )
+
+
+- CI / CD 설정
+
+ruff + pre-commit 추천
+
+--------
+# Black
+--------
+
+black이란?
+"The uncompromising Python code formatter"
+(타협 없는, 엄격한 Python 코드 포매터)
+
+🔧 무슨 역할을 하나요?
+Python 코드를 자동으로 정해진 스타일대로 정리해줍니다.
+
+개발자가 코드 스타일로 고민하지 않도록 강력한 규칙을 적용합니다.
+
+사람마다 스타일이 다른 걸 방지 → 팀 프로젝트에 특히 유리
+
+블랙(black) 설치
+poetry add --group=dev black
+
+블랙 실행
+black .  또는  poetry run black .
+
+Black	# fmt: off/on	포매팅 예외 처리 구간 설정
+
+----------
+isort
+----------
+
+isort란?
+import 정리 도구: 파이썬 파일 내의 import 구문을 알파벳 순서로 정렬하고, 표준 라이브러리, 서드파티 라이브러리, 로컬 모듈을 구분해서 깔끔하게 정렬해줍니다.
+협업 시 코드 스타일을 통일하고 가독성을 높여줍니다.
+Black, Flake8, Ruff 등 다른 포맷터나 린터와 함께 자주 사용됩니다.
+
+isort your_file.py   단일 파일 정렬
+isort .  프로젝트 전체 정렬
+isort . --check   검사만 하고 수정하지 않기 (CI 용도)
+
+isort	# isort: skip	해당 줄 import 정렬 제외
+isort	# isort: off/on	구간 단위 import 정렬 제외
+
+----------
+# Mypy
+----------
+
+mypy란?
+정적 타입 검사(static type checking)**를 할 수 있도록 도와주는 도구
+mypy는 Python 코드에 작성된 **타입 힌트(type hint)**를 기반으로, 코드 실행 없이 타입 오류를 사전에 찾아주는 도구입니다.
+Python은 기본적으로 동적 타입 언어이지만, 타입 힌트를 활용하면 정적 타입처럼 관리할 수 있습니다.
+타입 관련 버그를 줄이고, 코드의 안정성과 가독성을 높이는 데 도움을 줍니다.
+
+
+Mypy 설치
+poetry add --group=dev mypy
+
+mypy로 검사
+mypy .
+
+
+# type: ignore	해당 라인 모든 타입 에러 무시
+# type: ignore[에러코드]	특정 타입 에러만 무시
+# mypy: ignore-errors	파일 전체 타입 검사 무시
+# mypy: disable-error-code	파일 단위 특정 에러코드 무시
+# type:	변수에 타입 주석 지정
+
+-----------
+# Pytest
+-----------
+
+- pytest는 파이썬에서 테스트 코드를 쉽게 작성하고 실행할 수 있게 도와주는 테스트 프레임워크
+
+pytest 설치
+poetry add --group=dev pytest
+
+# pytest 사용시
+# 함수 이름 앞에 test_라고 써주면 test 함수인걸 인식한다.
+
+# 파이참에서 pytest 함수를 만들면 테스트 실행버튼이 생긴다.
+# 터미널에서 테스트 실행 시 pytest . 이렇게 입력하면 됨.
+def test_simple() -> None:
+    print("Testing simple")
+
+
+
+poetry add --group=dev isort
+검사
+isort .
+
+# isort가 해당 import 정렬하지 않음
+# isort: skip
+
+해당 에러코드 무시 설정
+# noqa: 에러코드
+# noqa: F405
+# noqa: F403
+
+
+테스트 스크립트 생성
+./resources/scripts/test.sh  생성
+
+권한 설정
+chmod +x ./resources/scripts/test.sh
+
+전체 테스트 실행
+./resources/scripts/test.sh
+
+
+# yml은 탭을 허용하지 않는다.
+# yml 검사 사이트
+# https://www.yamllint.com/
+
+
+깃 플로우
+https://legend-palm-1f1.notion.site/Git-Flow-14acaf5650aa800387a7c43e334cc72e
+https://legend-palm-1f1.notion.site/Git-Flow-14acaf5650aa80f2a4a9efa455e54f9b
+
+맥에서 홈브루로 깃 플로우 설치
+brew install git-flow-avh
+
+깃 플로우 초기화
+git flow init
+
+Branch name for production releases?
+→ 기본값은 master 이지만 main 으로 하는것 추천
+
+Branch name for "next release" development?
+→ develop (기본값)
+
+나머지 엔터
+
+git push origin develop
+
+이후 팀원 설정
+git fetch origin   또는  git fetch --all
+
+원격 develop 브랜치 기준으로 로컬 develop 브랜치 생성
+git checkout -b develop origin/develop
+
+# Feature 브랜치
+
+생성: 새로운 기능을 개발할 때 사용
+git flow feature start <기능이름>
+
+완료: 기능 개발을 마치고 develop 브랜치로 병합
+git flow feature finish <기능이름>
+
+# Release 브랜치
+
+생성: 배포 준비를 할 때 사용
+git flow release start <버전번호>
+
+완료: 릴리즈 완료 후 master와 develop에 병합
+git flow release finish <버전번호>
+
+# Hotfix 브랜치
+
+생성: 긴급한 버그 수정이 필요할 때 사용
+git flow hotfix start <버그이름>
+
+완료: 수정 완료 후 master와 develop에 병합
+git flow hotfix finish <버그이름>
+
+
+## . Git Flow 전체 흐름
+
+1. 팀 리더가 new project 생성하고 초기 세팅을 진행
+2. 팀 리더가 github repository에 올리기
+3. 나머지 팀원들은 repository에 올라 온 project를 클론받아 로컬에 가져옴
+4. 전 팀원 `git flow init` (초기화) 해줌
+    - 초기화 시 `Branch name for production releases?`질문에
+    → 기본 값은 `master` 이지만 `main` 으로 설정하시는 것을 추천..
+5. 모든 팀원 로컬 환경에서 `git branch` 명령어로 존재하는 브랜치를 확인해보면 처음에는 `main` 브랜치 뿐만 있었지만 초기화 이후  `develop` 브랜치가 로컬에 생겨있음을 확인가능.
+6. 각자 맡은 기능 개발을 위해 `git flow feature start 기능이름` 명령어로 feature 브랜치를 생성
+→ `git branch` 명령어로 확인해보면 `feature/기능이름` 브랜치가 생성되어있음.
+7. 생성된 feature 브랜치에서 기능 개발 작업합니다.
+8. 작업 완료 후 feature 브랜치를 원격 저장소에 push 해서 PR 올립니다.
+9. PR 타이틀, 설명 등 작성 후 리뷰어 팀원들 등록합니다.
+10. PR 승인 되면 Squash and Merge 버튼을 통해 압축 된 하나의 커밋으로 develop에 머지합니다.
+11. 그리고 로컬 환경에서 `develop` 브랜치로 checkout 하고, 기능 개발시에 사용했던 기존의  feature 브랜치는 삭제해줍니다.
+12. 개발된 기능이 업데이트 된 원격 저장소의 `develop` 브랜치를 `pull` 합니다.
+    - `git pull origin develop` 명령어 사용하기
+13. (( 7~13번 무한 반복 ))
+14. 각 팀원들이 기능 개발을 모두 완료했다면 배포할 준비를 해야합니다. 팀장이 배포 관련 설정을 모두 완료하고 `develop` 브랜치에 머지합니다.
+15. `main` 브랜치와 `develop` 브랜치를 compare & PR 한 후 `merge` 합니다.
+16. `main` 브랜치를 EC2 에서 클론받아 배포를 진행합니다.
+
+
+.gitignore 시크릿 폴더 업로드 제한
+.config_secret/
+
+시크릿 폴더 생성
+.config_secret
+
+시크릿 폴더에 secret.json 생성
+
+secret.json에 입력
+{
+  "DJANGO_SECRET_KEY" : "django-insecure-9u=$gmlz$b8h2^d9%3x871ti9pcile_q19lif*#yw(q@#=nb!8",
+  "email": {
+    "user": "이메일",
+    "password": "비밀번호"
+  },
+  "DB": {
+  "ENGINE": "django.db.backends.postgresql",
+  "NAME": "bank",
+  "USER": "root",
+  "PASSWORD": "1234",
+  "HOST": "localhost",
+  "PORT": "5432"
+  }
+}
+
+시크릿 파일 읽어 오기 위해 settings.py에 설정
+
+with open(BASE_DIR / '.config_secret' / 'secret.json') as f:
+    config_secret_str = f.read()
+
+SECRET = json.loads(config_secret_str)  # json 형태를 딕셔너리 형태로 바꿈
+
+# Email
+# from django.core.mail.backends.smtp import EmailBackend
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.naver.com' # 네이버 환결설정에서 볼 수 있음.
+EMAIL_USE_TLS = True  # 보안연결
+EMAIL_PORT = 587  # 네이버 메일 환경설정에서 확인 가능
+EMAIL_HOST_USER = SECRET["email"]["user"]
+EMAIL_HOST_PASSWORD =  SECRET["email"]["password"]
+
+# .config_secret 폴더 만들고
+# 폴더에 secret.json 만들고
+# .gitignore에 추가한 후 관리
+# print(SECRET['DB']['HOST'])
+# print(SECRET['DB2']['HOST'])
+# 이렇게 쓸 수도있고 dotenv를 통해 관리할 수도 있음
+
+LOGIN_URL = '/login/'
+LOGOUT_REDIRECT_URL = '/login/'
+# LOGOUT_REDIRECT_URL = '/'
+
+
+
+simplejwt 시작
+https://django-rest-framework-simplejwt.readthedocs.io/en/latest/getting_started.html
+
+simplejwt 설치
+poetry add djangorestframework-simplejwt
+
+# config/settings.py
+
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        ...
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+        ...
+    ]
+}
+INSTALLED_APPS = [
+    ...
+    'rest_framework_simplejwt',
+    ...
+]
+
+# config/urls.py
+
+urlpatterns = [
+    ...
+    path('api/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
+    path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
+    path('api/token/verify/', TokenVerifyView.as_view(), name='token_verify'),
+    ...
+]
+
+simplejwt 세팅
+https://django-rest-framework-simplejwt.readthedocs.io/en/latest/settings.html#
+
+
+simplejwt 커스터 마이징
+https://django-rest-framework-simplejwt.readthedocs.io/en/latest/customizing_token_claims.html
+
+# utils/jwt_serializers.py
+
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
+from rest_framework_simplejwt.views import TokenObtainPairView
+
+class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
+    @classmethod
+    def get_token(cls, user):
+        token = super().get_token(user)
+
+        # Add custom claims
+        token['user_name'] = user.username  # 토큰에 유저 이름을 함께 담아서 보냄
+
+        return token
+
+# config/settings.py
+# JWT 설정
+SIMPLE_JWT = {
+  # It will work instead of the default serializer(TokenObtainPairSerializer).
+  "TOKEN_OBTAIN_SERIALIZER": "utils.jwt_serializers.MyTokenObtainPairSerializer",
+  # ...
+}
+
+토큰 정보 보는 법
+https://jwt.io/
+
+토큰 만료시간 수정
+# JWT 설정
+SIMPLE_JWT = {
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=30),
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=1),
+    # It will work instead of the default serializer(TokenObtainPairSerializer).
+    "TOKEN_OBTAIN_SERIALIZER": "utils.jwt_serializers.MyTokenObtainPairSerializer",
+    # ...
+}
+
+poetry add -G dev django-extensions
+poetry add -G dev ipython
+
+poetry.lock 업데이트
+poetry lock
+
+
+개발환경으로 가상환경에 라이브러리 설치
+poetry install --with dev --no-root
+
+로그아웃 구현
+INSTALLED_APPS = [
+    ...
+    'rest_framework_simplejwt.token_blacklist',
+]
+
+# JWT 설정
+SIMPLE_JWT = {
+    "BLACKLIST_AFTER_ROTATION": True,
+    "ROTATE_REFRESH_TOKENS": True,
+}
+
+python manage.py migrate
+
+엑세스 토큰 (Access Token) 관리
+
+# 1.엑세스 토큰 localStorage에 저장 및 삭제
+// 로그인 시 저장
+localStorage.setItem('access_token', accessToken);
+// 로그아웃 시 삭제
+localStorage.removeItem('access_token');
+
+sessionStorage 사용 시
+sessionStorage.removeItem('access_token');
+
+React 상태 관리 (Redux 등)	상태 초기화
+dispatch({ type: 'LOGOUT' });  // 토큰 상태 null 처리
+
+서버에서 제어 (프론트에서 토큰을 사용할 수 없음)
+HttpOnly Cookie	JS에서 삭제 불가 → 서버에서 쿠키 만료 처리
+
+
+
+----------------------
+HttpOnly 쿠키의 핵심 특징
+----------------------
+
+특징	설명
+JS 접근 불가	document.cookie로 읽기/쓰기 불가
+자동 전송	같은 도메인 요청 시 자동으로 포함
+보안 강화	XSS 공격으로부터 안전
+삭제 방법	오직 서버가 쿠키 만료 처리 (Set-Cookie로)
+
+final_response = Response(custom_response, status=status.HTTP_200_OK)
+final_response.set_cookie(
+    key='refresh_token',
+    value=refresh_token,
+    httponly=True,
+    # secure=True,        # HTTPS 환경에서만 전송
+    secure=False,        # 로컬 개발 환경에 맞춰서 설정
+    samesite='Lax',     # CSRF 공격 방지 설정
+    path='/api/token',  # 필요한 경로에만 쿠키 사용
+    max_age=60 * 60 * 24 * 7,  # 7일 (초 단위)
+)
+return final_response
+
+settings.py 설정
+INSTALLED_APPS += ['corsheaders']
+
+MIDDLEWARE = [
+    'corsheaders.middleware.CorsMiddleware',   # 최상단에 추가
+    # ... 기타 미들웨어
+]
+
+# 프론트 도메인 등록
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:5173",
+]
+
+# 쿠키 포함 허용
+CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOW_METHODS = ['GET','POST','PUT','PATCH','DELETE','OPTIONS']
+
+--------------------
+이메일 보내는 기능 문제
+--------------------
+
+DEBUG=False일 때 이메일 보내는 기능에 문제생긴다면.
+
+from django.core.mail import send_mail
+send_mail 함수를 사용할 때 문제가 생긴다면
+
+try:
+    send_mail(subject, message, settings.EMAIL_HOST_USER, to_email)
+except Exception as e:
+    print(repr(e))
+    raise
+
+이렇게 해서 실패 했을 때 원인을 오류 코드로 파악한다.
+
+원인은
+SSLCertVerificationError(1, '[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: self-signed certificate in certificate chain (_ssl.c:1018)')
+인증서를 찾지 못해서 오류가 났다는 말인데
+
+파이썬 라이브러리 certifi 설치 후
+인증서를 강제로 인식 가능하게 certifi로 설정하면 어떠한 경우에도 사용가능하다.
+인증서 경로를 인식못하든 인증서가 실제로 존재하지 않든 인식.
+
+터미널에 입력해서 일시적으로 해결하는 방법
+export SSL_CERT_FILE=$(python -m certifi)
+
+해결방법1
+터미널에 영구 적용
+
+vim ~/.zshrc
+맨 아랫 줄에 추가
+export SSL_CERT_FILE=$(python -m certifi)
+
+해결방법2
+가상환경이 활성화 될때마다 인증서 경로를 자동 지정할 수 있도록 설정한다.
+
+activate스크립트 수정
+vim .venv/bin/activate
+맨 아랫줄에 추가
+export SSL_CERT_FILE=$(python -m certifi)
+
+해결방법3 (가장 추천)
+프로젝트가 인증서 경로를 인식할 수 있도록 장고 프로젝트에 설정
+
+certifi라이브러리 없으면 설치 후
+
+settings.py 최상단에 설정
+
+import os
+import certifi
+os.environ['SSL_CERT_FILE'] = certifi.where()
+
+
+-------------------
+# 소셜 로그인 기능 추가
+-------------------
+
+1. 사용자가 프론트에서 '소셜 로그인' 버튼 클릭
+     ↓
+2. 프론트가 백엔드의 /oauth/naver/login 같은 엔드포인트로 이동 (RedirectView)
+     ↓
+3. 백엔드가 Naver 로그인 페이지로 리다이렉트
+     ↓
+4. 사용자가 Naver에서 로그인하고 콜백 URL로 이동
+     ↓
+5. 백엔드가 access_token 받고 사용자 정보 조회
+     ↓
+6. 백엔드에서 회원 생성 또는 로그인 처리
+     ↓
+7. **JWT 토큰을 발급해서 프론트로 전달 (ex. 쿼리파라미터 or URL Fragment)**
+     ↓
+8. 프론트는 전달받은 토큰을 저장(localStorage 등)하고 로그인 완료 처리
+
+
+
+-----------
+  배포하기
+-----------
+https://www.notion.so/7-1c2caf5650aa806ba040f5af5cf08ce4
+
+EC2, S3, IAM 생성
+
+.env 작성하기
+값이랑 주석이랑 같은 줄에 있으면 주석도 같이 값으로 인식
+공백도 있으면 안됨
+# IAM 키 (다운받은 csv 파일에서 확인)
+S3_ACCESS_KEY=생성한 액세스 키
+S3_SECRET_ACCESS_KEY=생성한 비밀 액세스 키
+
+# S3 버킷 설정
+S3_STORAGE_BUCKET_NAME=본인 버킷 이름
+S3_REGION_NAME=ap-northeast-2
+
+django-storages, boto3 설치
+poetry add django-storages boto3
+
+- `django-storages`: static, media 같은 파일을 저장소와 연결해주는 라이브러리
+- `boto3`: AWS 에 python을 이용해서 엑세스할 수 있도록 해주는 라이브러리
+
+# settings.py에 추가
+
+# INSTALLED_APPS에 storages 추가
+INSTALLED_APPS = [
+  	...
+    "storages",
+]
+
+# Static, Media URL 수정
+STATIC_URL = f'https://{os.getenv("S3_STORAGE_BUCKET_NAME", "django-mini-project")}.s3.amazonaws.com/static/'
+MEDIA_URL = f'https://{os.getenv("S3_STORAGE_BUCKET_NAME", "django-mini-project")}.s3.amazonaws.com/media/'
+
+# STORAGES 작성
+STORAGES = {
+    "default": {
+        "BACKEND": "storages.backends.s3.S3Storage",
+        "OPTIONS": {
+            "access_key": os.getenv("S3_ACCESS_KEY", ""),
+            "secret_key": os.getenv("S3_SECRET_ACCESS_KEY", ""),
+            "bucket_name": os.getenv("S3_STORAGE_BUCKET_NAME", ""),
+            "region_name": os.getenv("S3_REGION_NAME", ""),
+            "location": "media",
+            "default_acl": "public-read",
+        },
+    },
+    "staticfiles": {
+        "BACKEND": "storages.backends.s3.S3Storage",
+        "OPTIONS": {
+            "access_key": os.getenv("S3_ACCESS_KEY", ""),
+            "secret_key": os.getenv("S3_SECRET_ACCESS_KEY", ""),
+            "bucket_name": os.getenv("S3_STORAGE_BUCKET_NAME", ""),
+            "region_name": os.getenv("S3_REGION_NAME", ""),
+            "custom_domain": f'{os.getenv("S3_STORAGE_BUCKET_NAME", "")}.s3.amazonaws.com',
+            "location": "static",
+            "default_acl": "public-read",
+        },
+    },
+}
+
+--------------------------
+# S3에 static 파일 업로드 하기
+--------------------------
+
+python-dotenv 설치
+poetry add python-dotenv
+
+settings.py에 설정
+from dotenv import load_dotenv
+load_dotenv(BASE_DIR / '.env')  # .env 파일 로드
+
+# S3에 static 파일 업로드
+python3 manage.py collectstatic
+
+--------------
+RDS 생성 및 설정
+--------------
+
+RDS생성
+
+.env에 DATABASES 정보 입력
+
+settings.py(prod.py)에 설정
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': os.getenv("DB_NAME"),              # 생성한 DB 이름
+        'USER': os.getenv("DB_USER"),              # PostgreSQL 사용자
+        'PASSWORD': os.getenv("DB_PASSWORD"),      # 비밀번호
+        'HOST': os.getenv("DB_HOST"),              # 로컬에서 실행 중이므로 localhost
+        'PORT': os.getenv("DB_PORT", "5432"),      # RDS 엔드포인트
+    }
+}
+
+ec2 접속
+ssh -i 키/페어/저장/위치/mp-key.pem ubuntu@EC2_PUBLIC_IP
+
+--------------------------
+# Docker 세팅
+--------------------------
+
+작성한 Dockerfile을 통해 이미지를 빌드
+# docker build -t django .
+docker build -f resources/docker/Dockerfile -t wistarback .
+
+빌드된 Docker 이미지를 통해 컨테이너 실행
+# docker run -p 8000:8000 --env-file .env django
+docker run -p 8000:8000 --env-file ./envs/local.env wistarback
+docker run -p 8000:8000 --env-file ./envs/prod.env wistarback
+
+Dockerfile 생성
+# 베이스 이미지 (본인 프로젝트에 맞는 버전 기입)
+FROM python:3.12-slim
+
+ENV PYTHONUNBUFFERED 1
+ENV PYTHONDONTWRITEBYTECODE 1
+
+# 종속성 파일 복사
+COPY ./poetry.lock /mini_project/
+COPY ./pyproject.toml /mini_project/
+
+# 작업 디렉토리 설정
+WORKDIR /mini_project
+
+# 종속성 설치
+RUN pip3 install poetry
+RUN poetry config virtualenvs.create false
+RUN poetry install
+RUN poetry add gunicorn
+
+# 애플리케이션 코드 복사
+COPY ./app /mini_project/app
+WORKDIR /mini_project/app
+
+
+# 소켓 파일 생성 디렉토리 권한 설정
+RUN mkdir -p /mini_project && chmod -R 755 /mini_project
+
+# Gunicorn을 사용하여 애플리케이션 실행
+CMD ["gunicorn", "config.wsgi:application", "--bind", "0.0.0.0:8000", "--workers", "2"]
+
+쉘 스크립트 작성
+
+scripts/run.sh 생성
+mkdir -p scripts
+touch scripts/run.sh
+
+도커 빌드
+docker build -t django .
+
+빌드된 Docker 이미지를 통해 컨테이너 실행
+docker run -p 8000:8000 --env-file .env django
+
+실행중인 도커 확인
+docker ps
+
+컨테이너 중지
+docker stop <컨테이너ID 또는 이름>
+
+컨테이저 삭제
+docker rm <컨테이너ID 또는 이름>
+
+빌드된 이미지 목록
+docker images
+
+이미지도 삭제 (원할 경우)
+docker rmi [이미지명]
+
+rds db에 접속
+psql -h <엔드포인트> -U <DB_USER> -d <DB_NAME> -p <PORT>
+
+깃 리파짓토리 특정 브랜치 클론
+git clone -b <브랜치명> <원격주소>
+
+
+
+import hashlib
+import hmac
+
+from django.http import HttpResponseForbidden
+from django.middleware.csrf import CsrfViewMiddleware
+
+from config.settings import SECRET_KEY
+
+
+class CustomCSRFMiddleware:
+    def __init__(self, get_response):
+        self.get_response = get_response
+        self.exempt_paths = [
+            '/api'     # 예: 토큰 발급 경로 등
+        ]
+        self.csrf_protected_paths = [
+            '/api/users/token/refresh',
+            '/api/users/logout'
+        ]
+
+    def __call__(self, request):
+
+        path = request.path
+
+        # 1️⃣ CSRF 검사 예외 처리
+        if any(path.startswith(exempt) for exempt in self.exempt_paths):
+            # 2️⃣ 특정 경로는 다시 CSRF 검사 수행
+            if path in self.csrf_protected_paths:
+                return CsrfViewMiddleware(self.get_response)(request)
+            # 그 외 API는 CSRF 무시
+            return self.get_response(request)
+
+        # 기본 웹 요청은 기존 CSRF 처리
+        return CsrfViewMiddleware(self.get_response)(request)
+
+
+
+
+    def __call__(self, request):
+
+        # 예외 경로는 검증 제외
+        if request.path in self.exempt_paths:
+            return self.get_response(request)
+
+        if request.method in ['POST', 'PUT', 'DELETE']:  # 중요 요청만 검증
+            token = request.headers.get('X-CSRFToken')
+            if not self.is_valid(token):
+                return HttpResponseForbidden("CSRF 검증 실패")
+        return self.get_response(request)
+
+
+-----------------------------
+Ubuntu 서버에서 CI/CD 사용해 배포 설정하기
+-----------------------------
+ssh -i ~/Downloads/wistar.pem ubuntu@43.203.181.6
+
+mv ~/Downloads/wistar.pem ~/.ssh
+# 만약 ~/.ssh 경로가없다면 .ssh 폴더를 생성해줘야합니다.
+mkdir ~/.ssh
+
+# mv 명령어가 듣지 않는 경우 sudo를 통해서 실행해보세요.
+
+확인
+cd ~/.ssh
+ls -l
+
+chmod 400 wistar.pem   # 읽기 모드 설정 추천 600은 읽기/쓰기
+ls -l
+
+ssh -i ~/.ssh/wistar.pem ubuntu@43.203.181.6
+
+Pyenv 설치 및 설정
+sudo apt-get update --fix-missing
+sudo apt-get install -y make build-essential libssl-dev zlib1g-dev libbz2-dev libreadline-dev libsqlite3-dev wget curl llvm libncurses5-dev libncursesw5-dev xz-utils libpq-dev python3-dev python3-setuptools liblzma-dev
+
+curl https://pyenv.run | bash
+
+- 각 패키지의 역할
+    - **`make`**: 컴파일, 링크 등을 위한 자동화 도구입니다.
+    - **`build-essential`**: C/C++ 컴파일러 및 관련 도구들(gcc, g++, make, libc6-dev 등)을 포함한 메타패키지입니다. 소스 코드로부터 프로그램을 빌드할 때 필요합니다.
+    - **`libssl-dev`**: OpenSSL 라이브러리의 개발 헤더 파일을 포함하며, 보안 통신과 관련된 기능을 제공합니다.
+    - **`zlib1g-dev`**: 압축 관련 기능을 제공하는 zlib 라이브러리의 개발 헤더 파일입니다.
+    - **`libbz2-dev`**: Bzip2 압축 라이브러리의 개발 헤더 파일입니다.
+    - **`libreadline-dev`**: 터미널에서의 텍스트 입력을 편리하게 해주는 readline 라이브러리의 개발 헤더 파일입니다.
+    - **`libsqlite3-dev`**: SQLite 데이터베이스 엔진의 개발 헤더 파일입니다.
+    - **`wget`**: 파일 다운로드를 위한 커맨드라인 도구입니다.
+    - **`curl`**: URL을 통해 데이터를 전송하거나 다운로드하는 도구입니다.
+    - **`llvm`**: Low-Level Virtual Machine의 약자로, 컴파일러 프레임워크입니다. `pyenv`로 Python을 빌드할 때 사용됩니다.
+    - **`libncurses5-dev` 및 `libncursesw5-dev`**: 터미널 UI 개발을 위한 ncurses 라이브러리의 개발 헤더 파일입니다.
+    - **`xz-utils`**: xz 압축 파일을 다루기 위한 유틸리티입니다.
+    - **`libpq-dev`**: PostgreSQL 데이터베이스를 위한 개발 헤더 파일입니다. Python에서 PostgreSQL을 사용하는 프로젝트에 필요합니다.
+    - **`python3-dev`**: Python 3 헤더 파일과 개발 도구를 포함합니다. Python C 확장을 빌드할 때 필요합니다.
+    - `python3-setuptools`
+        - **패키지 설치**: Python 패키지를 설치하고, 종속성을 해결합니다.
+        - **패키지 배포**: Python 패키지를 생성하고, 배포할 수 있도록 도와줍니다.
+        - **`pip`와 함께 사용**: `pip`를 사용하여 패키지를 설치할 때, `setuptools`가 설치되어 있어야 하는 경우가 많습니다. ( 여기서는 Pillow 설치를 위함)
+    - **`liblzma-dev`**: LZMA 압축 라이브러리의 개발 헤더 파일입니다.
+
+- `curl https://pyenv.run | bash` 해석
+    `https://pyenv.run` 으로부터 pyenv 설치 스크립트 파일을 다운받아서 실행합니다.
+    이 스크립트는 `pyenv`, `pyenv-virtualenv`, `pyenv-update` 등의 설치를 자동으로 진행합니다.
+    필요한 초기 설정을 .bashrc나 .zshrc 파일에 추가하여 `pyenv` 명령어를 사용할 수 있도록 환경을 구성합니다.
+
+
+Ubuntu 사용자 계정의 Bash 셸 설정 파일을 편집
+.bashrc 에 pyenv 설정 추가하기
+
+# vi 에디터로 .bashrc 편집하기
+sudo vi ~/.bashrc
+
+# 터미널 재실행
+source ~/.bashrc
+
+yenv에서 사용할 python을 설치해줍니다.
+pyenv install <version>
+pyenv install 3.13.1
+
+Github SSH-Keygen
+터미널에서 아래 명령어를 입력 후 계속 Enter를 눌러 ssh-key를 생성합니다.
+ssh-keygen -t rsa -b 4096 -C "깃허브 이메일"
+ssh-keygen -t rsa -b 4096 -C "xowls0131@naver.com"
+
+아래 명령어를 입력하여 현재 쉘에서 SSH 에이전트를 실행합니다.
+eval "$(ssh-agent -s)"
+
+vi 에디터를 사용하여 .ssh / config 파일을 생성합니다.
+vi ~/.ssh/config
+
+아래 내용 추가 후 저장
+Host github.com
+  AddKeysToAgent yes
+  IdentityFile ~/.ssh/id_rsa
+
+아래의 명령어를 입력하여 ssh-agent에 방금 생성한 SSH-Key를 추가합니다.
+ssh-add -k ~/.ssh/id_rsa
+
+아래의 명령어를 입력하여 id_rsa.pub 파일을 열어 이메일 앞쪽의 키값만 복사합니다.
+sudo vi ~/.ssh/id_rsa.pub
+
+아래의 명령어를 입력하여 작성한 코드를 클론 받습니다.
+git clone --branch develop --single-branch <레포지토리 주소>
+git clone --branch prod/test2 --single-branch https://github.com/09-MainProject/WiStarBack.git
+
+프로젝트 경로로 이동
+cd <프로젝트 루트 디렉터리>
+cd WiStarBack
+
+settings.py 심볼릭 링크를 생성합니다.
+ln -sf config/settings/prod.py config/settings/settings.py
+
+envs 폴더를 생성하고 하위에 .env.prod 파일을 생성합니다.
+mkdir envs
+cd envs
+
+# touch 명령어로 빈 파일 생성
+touch .env.prod
+
+# .env.prod를  vi 에디터로 편집합니다.
+vi .env.prod
+
+# pyenv 가상환경 생성
+pyenv virtualenv <python-version> 가상환경이름
+pyenv virtualenv 3.13.1 wistar
+
+# 가상환경 적용
+pyenv local 가상환경이름
+pyenv local wistar
+pyenv local 3.13.1  #가상환경 생성 없이 버전 파이썬 버전 설정
+
+# 가상환경 적용 확인
+python --version
+
+# poetry 설치
+curl -sSL https://install.python-poetry.org | python3 -
+
+# .bashrc 수정
+vi ~/.bashrc
+
+# 아래의 내용을 .bashrc에 추가해줍니다.
+export PATH="/home/ubuntu/.local/bin:$PATH"
+
+# 터미널 재실행
+source ~/.bashrc
+
+# poetry를 통한 라이브러리 설치
+poetry install
+poetry install --no-root
+
+가상환경 터미널에 활성화 (poetry로 생성된 가상환경 사용시)
+poetry env activate
+
+
+### Gunicorn 설정하기
+아래의 가이드를 따라 Gunicorn 설정을 추가합니다.
+
+# Gunicorn 가상환경 설정
+pyenv virtualenv <python version> gunicorn
+pyenv virtualenv 3.13.1 gunicorn
+
+# 현재 쉘에 gunicorn 가상환경 지정
+pyenv shell gunicorn
+
+# 가상환경에 gunicorn 설치
+pip install gunicorn
+
+# 가상환경에 poetry를 이용하여 라이브러리들을 설치
+poetry install
+poetry install --no-root
+
+# Gunicorn 시스템 설정
+sudo vi /etc/systemd/system/gunicorn.service
+
+# 아래의 내용을 추가후 :wq
+[Unit]
+Description=gunicorn daemon
+After=network.target
+
+[Service]
+User=ubuntu
+Group=ubuntu
+WorkingDirectory=/home/ubuntu/프로젝트 루트 디렉터리
+ExecStart=/home/ubuntu/.pyenv/versions/gunicorn/bin/gunicorn \
+        --access-logfile /var/log/gunicorn/access.log \
+        --error-logfile /var/log/gunicorn/error.log \
+        --log-level info \
+        --workers 3 \
+        --bind unix:/srv/gunicorn/gunicorn.sock config.wsgi:application
+Environment="DJANGO_SETTINGS_MODULE=config.settings.settings"
+[Install]
+WantedBy=multi-user.target
+
+여기서 가상환경을
+pyenv virtualenv 3.13.1 wistar 이렇게 만들어서 사용했으면
+/home/ubuntu/.pyenv/versions/wistar/bin/gunicorn
+이렇게 이 부분만 바꾸면 된다.
+
+# 시스템설정 daemon-reload
+sudo systemctl daemon-reload
+
+# gunicon.service를 사용가능한 시스템 설정으로 등록
+sudo systemctl enable gunicorn.service
+
+# gunicorn을 사용하기 위해 /srv에 대한 권한 설정
+sudo chmod 777 /srv
+
+# /srv 하위에 gunicorn 디렉터리 생성
+mkdir /srv/gunicorn
+
+# /var/log 하위에 gunicorn 디렉터리 생성(로그파일 생성을 위해)
+sudo mkdir /var/log/gunicorn
+
+# /var/log/gunicorn 권한 설정
+sudo chown -R ubuntu:ubuntu /var/log/gunicorn
+sudo chmod -R 755 /var/log/gunicorn
+
+# gunicorn 서비스 실행
+sudo systemctl start gunicorn.service
+
+# gunicorn 서비스 상태 확인
+sudo systemctl status gunicorn.service
+
+requests 없어서 에러 발생
+가상환경 활성화 상태에서 필수 패키지 설치
+pip install requests
+
+Gunicorn 서비스 재시작
+sudo systemctl restart gunicorn.service
+
+서비스 상태 확인
+sudo systemctl status gunicorn.service
+
+
+### Nginx 설치 및 설정하기
+- 아래의 가이드를 따라 nginx 설정을 추가합니다.
+
+# nginx 패키지 설치
+sudo apt-get install software-properties-common
+sudo apt-get install nginx
+
+# nginx 설정 파일이 위치한 디렉터리로 이동
+cd /etc/nginx/sites-available
+# 기본 설정파일 제거
+sudo rm default
+# 새로운 설정파일 추가
+sudo vi django.conf
+
+# 아래의 내용을 입력 후 :wq
+server {
+        server_name EC2의 퍼블릭 DNS;
+
+        location /static/ {
+				        root /home/ubuntu/프로젝트 루트 디렉터리;
+        }
+
+        location /media/ {
+				        root /home/ubuntu/프로젝트 루트 디렉터리;
+        }
+
+        location / {
+                include proxy_params;
+                proxy_pass http://unix:/srv/gunicorn/gunicorn.sock;
+        }
+        listen 80;
+}
+
+# nginx 설정파일 심볼릭 링크 추가
+sudo ln -sf /etc/nginx/sites-available/django.conf /etc/nginx/sites-enabled/
+
+# 기본 설정 심볼릭 링크 제거
+sudo rm /etc/nginx/sites-enabled/default
+
+# nginx user 설정
+sudo vi /etc/nginx/nginx.conf
+# 상단의 'user www-data'를 'user ubuntu'로 변경 후 :wq
+
+# syetemctl 을 사용하여 nginx 서비스 시작
+sudo systemctl restart nginx.service
+
+# syetemctl 을 사용하여 nginx 서비스 상태확인
+sudo systemctl status nginx.service
+
+Nginx 관련 설정 파일을 수정했을 때
+sudo systemctl daemon-reload
+
+깃에 이렇게 커밋 로그 안남기고 최신 커밋에 합쳤을 때
+git add .
+git commit --amend --no-edit
+git push --force-with-lease origin feature/user
+
+현재 로컬 브랜치(prod/test2)는 그 이전 히스토리를 가지고 있어서
+Git이 병합 방식(merge/rebase/fast-forward)을 명확히 지정해주길 요구
+하지만 그냥 원격 브랜치를 강제 적용
+git fetch origin
+git reset --hard origin/prod/test2
+
+
+SSL 인증서를 적용하여 HTTPS 설정하기
+certbot 설치
+sudo apt-get install certbot python3-certbot-nginx
+
+nginx에 ssl 인증서를 적용
+sudo certbot --nginx -d example.com
+
+첫번째 질문은 서비스 사용 약관에 대한 pdf 파일 생성여부를 물어보는 것이고,
+두번째 질문은 도메인 인증에 성공하면 해당 이슈를 이메일로 공유하고
+이메일을 통해 certbot과 관련된 뉴스, 캠페인 등을 수신받을 것인지 동의여부입니다.
+
+모두 동의하고 난 후 certbot의 도메인 인증과정을 통과하였다면
+/etc/letsencrpyt/live/도메인 경로 하위에 4개의 pem 키가 생성됩니다.
+
+Let's Encrypt 인증서는 90일 동안만 유효합니다.
+인증서를 자동으로 갱신하도록 설정하려면 cron을 이용해 자동 갱신을 설정해야 합니다.
+certbot은 자동 갱신을 위한 설정이 기본적으로 되어 있지만,
+아래 커맨드로 갱신이 잘 작동하는지 확인
+sudo certbot renew --dry-run
+
+------------------------------------------
+아마존 리눅스 서버에서 도커 사용해 배포 설정하기
+------------------------------------------
+
+# docker 이미지 생성 및 테스트
+# docker build : Dockerfile을 기반으로 도커 이미지를 빌드
+# -t는 이미지에 태그(이름)을 지정하는 옵션
+# 현재 디렉토리(.)를 빌드 컨텍스트로 지정
+docker build -t wistar_backend ./resources/docker
+# 실행
+docker run wistar_backend
+
+
+도커 설치 -y 모든 질문 yes
+sudo yum install -y docker
+도커 설치 확인
+docker --version
+Docker 데몬(서버)을 수동으로 지금 바로 실행. 이걸 하지 않으면 docker run을 해도 동작하지 않음.
+sudo systemctl start docker
+서버를 껐다 켜도 Docker 서비스가 자동으로 다시 시작되게 설정
+sudo systemctl enable docker
+ssh -i ~/Downloads/wistar.pem ec2-user@3.39.10.22
+ssh -i ~/Downloads/wistar.pem ubuntu@43.203.181.6
+
+sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+
+sudo chmod +x /usr/local/bin/docker-compose
+
+docker-compose --version
+
+
+mv ~/Downloads/wistar.pem ~/.ssh
+ls -l
+
+chmod 400 wistar.pem   # 읽기 모드 설정
+ls -l
+
+ssh -i ~/.ssh/wistar.pem ec2-user@13.124.181.116
+ssh -i ~/.ssh/wistar.pem ubuntu@43.203.181.6
+
+
+1. scp&docker-compose
+2. GitHub & docker-compose  (보안위협)
+3. docker build
+
+서버에 프로젝트 복사
+
+깃 클론
+git clone 리파짓토리
+
+업데이트
+git fetch origin
+
+배포용 브랜치로 이동
+git checkout -b test/prod origin/test/prod
+
+프로젝트 경로에서 명령어 입력
+scp -i ~/.ssh/mykey02.pem -r . ec2-user@13.124.181.116:~/app
+
+# docker-compose: 도커 컴포즈 실행 명령어 (여러 컨테이너를 정의하고 관리하는 도구)
+# -f docker-compose-prod.yml: 사용할 설정 파일을 명시적으로 지정 (docker-compose.yml이 아닌 다른 파일을 지정할 때 필요)
+# up: 컨테이너를 생성 및 실행하는 명령
+# -d: 백그라운드 실행 (터미널 점유 X)
+sudo docker-compose -f docker-compose-prod.yml up -d
+
+connect: permission denied 이런 오류 뜰 시
+ec2-user를 docker 그룹에 추가 후 ec2서버 재접속
+sudo usermod -aG docker ec2-user
+
+sudo docker ps
+
+ec2 서버안의 도커 이미지에 접속
+sudo docker exec -it instagram_backend bash
+
+환경변수 확인
+echo $DJANGO_SETTINGS_MODULE
+
+python3 manage.py makemigrations
+
+python3 manage.py migrate
+
+python3 manage.py createsuperuser
+
+
+
+컨테이너 정지 및 제거
+sudo docker-compose -f docker-compose-prod.yml down
+
+변경사항 반영하여 재빌드 및 재실행
+sudo docker-compose -f docker-compose-prod.yml up --build -d
+
+서버 데이터베이스 접속
+docker exec -it wistar_db psql -U postgres -d oz_project
+
+정적 파일 수집
+python manage.py collectstatic --noinput
+
+# (추가) 필요한 경우 pip 업그레이드
+sudo python3 -m ensurepip --upgrade
+
+도커 컨테이너 터미널 실행
+sudo docker exec -it wistarback bash
+
+
+nginx 설치 (Amazon Linux 2용)
+sudo yum update -y
+sudo yum install nginx -y
+설치확인
+nginx -v
+
+2단계: nginx 시작
+sudo systemctl start nginx
+sudo systemctl enable nginx
+
+3단계: nginx 설정 파일 만들기
+sudo vi /etc/nginx/conf.d/wistarback.conf
+
+복붙
+server {
+    listen 80;
+    server_name _;  # 일단 모든 요청 허용
+
+    # Static 파일 요청 처리
+    location /static/ {
+        alias /WiStarBack/.static_root/;
+    }
+
+    # Django 백엔드 요청은 Gunicorn(8000포트)으로 넘기기
+    location / {
+        proxy_pass http://127.0.0.1:8000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+}
+
+4단계: nginx 재시작
+sudo nginx -t
+sudo systemctl reload nginx
+
+5단계: 방화벽(보안 그룹) 확인
+
+6단계: 최종 확인
+
+.static_root 폴더 전송
+scp -i ~/Downloads/your-key.pem -r .static_root/ ec2-user@3.39.10.22:/home/ec2-user/WiStarBack/
+scp -i ~/Downloads/wistar.pem -r .static_root/ ec2-user@3.39.10.22:/home/ec2-user/WiStarBack/
+
+server {
+    listen 80;
+    server_name _;
+
+    location /static/ {
+        alias /home/ec2-user/WiStarBack/.static_root/;
+        access_log off;
+        expires max;
+    }
+
+    location / {
+        proxy_pass http://127.0.0.1:8000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+}
+
+에러 로그 확인
+sudo tail -n 100 /var/log/nginx/error.log
+
+권한 수정
+sudo chmod -R 755 /home/ec2-user/WiStarBack/.static_root
+sudo nginx -t
+sudo systemctl reload nginx
+
+nginx 권한 설정
+sudo chown -R nginx:nginx /home/ec2-user/WiStarBack/.static_root
+sudo systemctl reload nginx
+
+nginx 권한 설정
+sudo chmod +x /home
+sudo chmod +x /home/ec2-user
+sudo chmod +x /home/ec2-user/WiStarBack
+sudo chmod +x /home/ec2-user/WiStarBack/.static_root
+
+
+http://3.39.10.22/redoc/
+http://3.39.10.22/swagger/
+
+
+커밋 로그 안남기고 최신 커밋에 합치는법
+git add .
+git commit --amend --no-edit
+git push --force-with-lease origin feature/user
+
+해당 커밋까지 상태를 되돌리되, 작업 내용은 staging 상태(index)에 유지
+git reset --soft 해시코드
+
+
+브랜치 트랙킹 설정 확인
+git branch -vv
+
+브랜치 트랙킹 설정
+git branch --set-upstream-to=origin/develop develop
+
+이후 트랙킹 설정된 브랜치 pull 가능
+
+
+작업은 병렬로, 브랜치 최신화는 나중에
+작업을 미리 시작하고, 나중에 develop 머지가 끝난 후 최신 develop을 반영(rebase or merge)
+
+📌 1. 지금 당장 작업을 시작하는 방법
+# 최신 develop 기준이 아직 merge 안 되었더라도
+git checkout -b feature/my-task
+# 여기서 바로 작업 시작 가능
+이 시점에서는 *"구-develop 기준"*으로 작업이 시작됩니다.
+상관없습니다. 나중에 최신화만 잘 하면 됩니다.
+
+📌 2. develop이 완전히 merge된 후 최신화하는 방법
+git fetch origin
+git checkout feature/my-task
+git rebase origin/develop  # 또는 git merge origin/develop
+이 과정에서 충돌이 나면 해결하면 되고,
+그렇지 않으면 깔끔하게 최신 develop 기반으로 작업을 이어갈 수 있습니다.
+
+📌 3. 이후 정상적으로 PR 보내기
+git push origin feature/my-task
+# 그리고 PR 보내기
+
+
+마이그레이션 꼬였을 때
+# 모든 마이그레이션 삭제 (주의!)
+find . -path "*/migrations/*.py" -not -name "__init__.py" -delete
+find . -path "*/migrations/*.pyc"  -delete
+
+# 새로 마이그레이션 생성
+python manage.py makemigrations
+
+# 마이그레이션 적용
+python manage.py migrate
+
+
+원격 브랜치 가져오기
+# 1. 원격 브랜치 목록 확인하기
+git fetch  # 원격 브랜치 정보 최신화
+git branch -r  # 원격 브랜치 목록 조회
+
+# 2. 특정 원격 브랜치를 로컬로 가져오기 (체크아웃)
+git checkout -b <로컬브랜치명> origin/<원격브랜치명>
+
+
+서버에 변경 사항 적용
+git pull origin main
+sudo systemctl restart gunicorn
+sudo systemctl reload nginx
+
+# gunicorn 서비스 상태 확인
+sudo systemctl status gunicorn
+sudo systemctl status nginx
+
+
+로컬 변경사항 제외하고 원격 리파직토리 적용
+# 1. 변경사항 임시 저장 (커밋 안 해도 됨)
+git stash push -m "temp"
+
+# 2. 다른 브랜치로 이동
+git checkout prod/test2
+
+# 3. prod/develop 삭제
+git branch -D prod/develop
+
+# 4. 원격 기준으로 다시 생성
+git fetch origin
+git checkout -b prod/develop origin/prod/develop
+
+# 변경사항 다시 적용하고 싶다면
+git stash pop
+
+# 필요 없다면 버리기
+git stash drop
+# 또는
+git stash clear  # 모든 stash 제거
+
+
+# 원하는 변경사항만 적용
+git merge develop --no-commit --no-ff
+
+develop 브랜치에 pr적용할 때 원하는 대상만 적용하고 싶으면
+git checkout develop  # 병합 대상 브랜치
+git fetch origin pull/36/head:pr-36  #pr을 불러옴
+git merge pr-36 --no-commit --no-ff
+
+원하는 파일 적용 및 해제
+git restore --staged apps/user_schedule/migrations/000X_*.py
+git restore apps/user_schedule/migrations/000X_*.py
+
+나머지 변경 사항만 커밋
+git add .
+git commit -m "PR #36 수동 병합 (마이그레이션 제외)"
+
+원격 브랜치에 적용
+git push
+
+
+
+도커 컨테이너 접속
+docker exec -it wistarback bash
+
+
+도커 컨테이너 db 접속
+docker exec -it wistar_db psql -U postgres -d oz_project
+
+테이블 목록
+\dt
+
+이미 존재하는 로컬 브랜치에 원격 브랜치 추적 설정
+git branch --set-upstream-to=origin/<원격브랜치명> <로컬브랜치명>
+
+
+gunicorn 서버 로그 확인
+sudo journalctl -u gunicorn.service -n 50 --no-pager
+
+pyenv virtualenv 3.13.1 wistar
+pyenv local wistar
+인터프리터 설정 (설정시 가상환경 자동 활성화)
+
+
+현재 poetry가 사용중인 가상환경 경로 확인
+poetry env info --path
+
+현재 프로젝트가 사용중인 poetry 가상환경 리스트
+poetry env list
+
+poetry에서 자동 생성된 가상환경 위치
+cd /Users/taejin/Library/Caches/pypoetry/virtualenvs/
+
+poetry 가상환경 강제 삭제
+rm -rf /Users/taejin/Library/Caches/pypoetry/virtualenvs/myfavidolback-QFqDp6Nl-py3.13
+
+
+# 자동 배포 설정시 심볼릭 링크를 설정하는게 편하다
+# local 심볼릭 링크 생성
+
+프로젝트 경로에서 실행
+ln -sf $(pwd)/config/settings/local.py $(pwd)/config/settings/settings.py
+
+경로에 들어가서 실행
+cd config/settings
+ln -sf local.py settings.py
+
+# 운영 서버에서만 실행
+ln -sf $(pwd)/config/urls/urls_prod.py $(pwd)/config/urls/urls.py
+# 로컬 개발에서는
+ln -sf $(pwd)/config/urls/urls_dev.py $(pwd)/config/urls/urls.py
+
+
+로컬 개발 서버(runserver):
+DEBUG = True일 때는 ALLOWED_HOSTS 검사를 거의 하지 않음
+그래서 []이더라도 정상 작동
+
+서버 (Gunicorn + Nginx 등):
+manage.py runserver가 아니라 WSGI 서버를 통해 배포되면
+Django는 ALLOWED_HOSTS를 엄격하게 검사함
+DEBUG = True라도 무조건 ALLOWED_HOSTS에 포함되어 있어야 함
+
+
+장고 시크릿 키 생성 명령어
+python -c 'from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())'
