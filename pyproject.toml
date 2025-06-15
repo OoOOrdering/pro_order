@@ -1,9 +1,9 @@
 [project]
-name = "myfavidolback"
+name = "pr_order"
 version = "0.1.0"
-description = ""
+description = "Personal Order Management Project"
 authors = [
-    {name = "LucasKim4321",email = "xowls0131@naver.com"}
+    {name = "hyazzang",email = "pd.hyazzang@gmail.com"}
 ]
 readme = "README.md"
 requires-python = ">=3.13"
