@@ -1,3 +1,5 @@
+import logging
+
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework import status
 from rest_framework.generics import GenericAPIView
@@ -6,9 +8,22 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework_simplejwt.authentication import JWTAuthentication
 
-from utils.responses.image import UPLOAD_SUCCESS
-
 from .serializers import ImageUploadSerializer
+
+
+# Helper functions for consistent API responses
+def success_response(message="Success", data=None, code=status.HTTP_200_OK):
+    return Response({"code": code, "message": message, "data": data}, status=code)
+
+
+def error_response(message="Error", data=None, code=status.HTTP_400_BAD_REQUEST):
+    return Response({"code": code, "message": message, "data": data}, status=code)
+
+
+# Response constants
+UPLOAD_SUCCESS = {"code": 201, "message": "이미지 업로드에 성공했습니다."}
+
+logger = logging.getLogger("apps")
 
 
 class ImageUploadView(GenericAPIView):
@@ -31,21 +46,30 @@ class ImageUploadView(GenericAPIView):
         },
     )
     def post(self, request):
-        serializer = self.get_serializer(
-            data=request.data, context={"request": request}
-        )
-        serializer.is_valid(raise_exception=True)
-        images = serializer.save()
-        custom_response = UPLOAD_SUCCESS
-        custom_response["data"] = [
-            {
-                "image_url": image.image_url,
-                "thumbnail_url": image.get_thumbnail_url(),
-                "public_id": image.public_id,
-            }
-            for image in images
-        ]
-        return Response(custom_response, status=status.HTTP_201_CREATED)
+        serializer = self.get_serializer(data=request.data, context={"request": request})
+        try:
+            serializer.is_valid(raise_exception=True)
+            images = serializer.save()
+            response_data = [
+                {
+                    "image_url": image.image_url,
+                    "thumbnail_url": image.get_thumbnail_url(),
+                    "public_id": image.public_id,
+                }
+                for image in images
+            ]
+            logger.info(f"Image upload successful for user {request.user.email}")
+            return success_response(
+                message=UPLOAD_SUCCESS["message"],
+                data=response_data,
+                code=status.HTTP_201_CREATED,
+            )
+        except Exception as e:
+            logger.error(
+                f"Error uploading image for user {request.user.email}: {e}",
+                exc_info=True,
+            )
+            return error_response(message="이미지 업로드에 실패했습니다.", data=str(e))
 
     @swagger_auto_schema(
         tags=["이미지"],
@@ -58,16 +82,18 @@ class ImageUploadView(GenericAPIView):
         },
     )
     def delete(self, request, *args, **kwargs):
-        serializer = self.get_serializer(
-            data=request.data, context={"request": request}
-        )
-        serializer.is_valid(raise_exception=True)
-        deleted_count = serializer.delete()
-        return Response(
-            {
-                "code": 200,
-                "message": f"{deleted_count}개의 이미지가 삭제되었습니다.",
-                "data": {"deleted": True, "deleted_count": deleted_count},
-            },
-            status=status.HTTP_200_OK,
-        )
+        serializer = self.get_serializer(data=request.data, context={"request": request})
+        try:
+            serializer.is_valid(raise_exception=True)
+            deleted_count = serializer.delete()
+            logger.info(f"{deleted_count} images deleted by user {request.user.email}")
+            return success_response(
+                message=f"{deleted_count}개의 이미지가 삭제되었습니다.",
+                data={"deleted": True, "deleted_count": deleted_count},
+            )
+        except Exception as e:
+            logger.error(
+                f"Error deleting image for user {request.user.email}: {e}",
+                exc_info=True,
+            )
+            return error_response(message="이미지 삭제에 실패했습니다.", data=str(e))

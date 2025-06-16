@@ -5,16 +5,16 @@ from rest_framework import serializers
 from rest_framework.validators import UniqueValidator
 from rest_framework_simplejwt.tokens import RefreshToken
 
+from apps.image.image_utils import delete_from_cloudinary, upload_to_cloudinary
 from apps.image.models import Image
-from apps.image.utils import delete_from_cloudinary, upload_to_cloudinary
 from utils.exceptions import CustomAPIException
 from utils.profanity_filter import ProfanityFilter
-from utils.responses.user import (
-    DUPLICATE_EMAIL,
-    DUPLICATE_NICKNAME,
-    INVALID_REFRESH_TOKEN,
-    SIGNUP_PASSWORD_MISMATCH,
-)
+
+# Response constants
+DUPLICATE_EMAIL = {"code": 400, "message": "이미 존재하는 이메일입니다."}
+DUPLICATE_NICKNAME = {"code": 400, "message": "이미 존재하는 닉네임입니다."}
+INVALID_REFRESH_TOKEN = {"code": 401, "message": "유효하지 않은 리프레시 토큰입니다."}
+SIGNUP_PASSWORD_MISMATCH = {"code": 400, "message": "비밀번호가 일치하지 않습니다."}
 
 User = get_user_model()
 profanity_filter = ProfanityFilter()
@@ -172,29 +172,32 @@ class ProfileUpdateSerializer(serializers.ModelSerializer):
     def update(self, instance, validated_data):
         profile_image_file = validated_data.pop("profile_image_file", None)
 
-        # 프로필 이미지 처리
-        if profile_image_file is not None:  # 새로운 이미지가 제공되었거나 이미지를 제거하려는 경우
-            current_profile_image = instance.profile_images.first()
+        if profile_image_file:
+            # 기존 이미지 삭제
+            # instance.profile_images.all().delete()
+            content_type = ContentType.objects.get_for_model(instance)
+            # 기존 이미지 모두 삭제 후 새 이미지 업로드
+            for img in Image.objects.filter(content_type=content_type, object_id=instance.id):
+                # Cloudinary에서 이미지 삭제
+                if img.public_id:
+                    delete_from_cloudinary(img.public_id)
+                img.delete()  # DB에서 이미지 객체 삭제
 
-            if current_profile_image:  # 기존 이미지가 있다면 Cloudinary와 DB에서 삭제
-                delete_from_cloudinary(current_profile_image.public_id)
-                current_profile_image.delete()
+            # 새 이미지 업로드
+            image_data = profile_image_file.read()
+            image_name = profile_image_file.name
+            folder_path = f"users/{instance.id}/profile_image"
 
-            if profile_image_file:  # 새로운 파일이 실제로 제공된 경우 (None이 아닌 경우)
-                # Cloudinary에 새 이미지 업로드
-                uploaded_data = upload_to_cloudinary(profile_image_file, folder="profile_images")
+            # Cloudinary에 업로드 및 URL/public_id 저장
+            try:
+                image_url, public_id = upload_to_cloudinary(image_data, image_name, folder_path)
                 Image.objects.create(
                     content_object=instance,
-                    image_url=uploaded_data["secure_url"],
-                    public_id=uploaded_data["public_id"],
-                    content_type=ContentType.objects.get_for_model(User),
+                    image_url=image_url,
+                    public_id=public_id,
                 )
-        elif "profile_image_file" in self.initial_data and self.initial_data["profile_image_file"] is None:
-            # 사용자가 명시적으로 profile_image_file=null을 보내 이미지를 제거하려는 경우
-            current_profile_image = instance.profile_images.first()
-            if current_profile_image:
-                delete_from_cloudinary(current_profile_image.public_id)
-                current_profile_image.delete()
+            except Exception as e:
+                raise CustomAPIException(f"이미지 업로드 실패: {e}")
 
         return super().update(instance, validated_data)
 
@@ -239,51 +242,26 @@ class UserUpdateSerializer(serializers.ModelSerializer):
     def update(self, instance, validated_data):
         profile_image_file = validated_data.pop("profile_image_file", None)
 
-        # 프로필 이미지 처리
-        if profile_image_file is not None:  # 새로운 이미지가 제공되었거나 이미지를 제거하려는 경우
-            current_profile_image = instance.profile_images.first()
+        if profile_image_file:
+            content_type = ContentType.objects.get_for_model(instance)
+            for img in Image.objects.filter(content_type=content_type, object_id=instance.id):
+                if img.public_id:
+                    delete_from_cloudinary(img.public_id)
+                img.delete()
 
-            if current_profile_image:  # 기존 이미지가 있다면 Cloudinary와 DB에서 삭제
-                delete_from_cloudinary(current_profile_image.public_id)
-                current_profile_image.delete()
+            image_data = profile_image_file.read()
+            image_name = profile_image_file.name
+            folder_path = f"users/{instance.id}/profile_image"
 
-            if profile_image_file:  # 새로운 파일이 실제로 제공된 경우 (None이 아닌 경우)
-                # Cloudinary에 새 이미지 업로드
-                uploaded_data = upload_to_cloudinary(profile_image_file, folder="profile_images")
+            try:
+                image_url, public_id = upload_to_cloudinary(image_data, image_name, folder_path)
                 Image.objects.create(
                     content_object=instance,
-                    image_url=uploaded_data["secure_url"],
-                    public_id=uploaded_data["public_id"],
-                    content_type=ContentType.objects.get_for_model(User),
+                    image_url=image_url,
+                    public_id=public_id,
                 )
-        elif "profile_image_file" in self.initial_data and self.initial_data["profile_image_file"] is None:
-            # 사용자가 명시적으로 profile_image_file=null을 보내 이미지를 제거하려는 경우
-            current_profile_image = instance.profile_images.first()
-            if current_profile_image:
-                delete_from_cloudinary(current_profile_image.public_id)
-                current_profile_image.delete()
-
-        request_user = self.context.get("request").user
-
-        # Only staff can change user_type, user_grade, is_active, is_staff, is_superuser
-        if not request_user.is_staff:
-            restricted_fields = [
-                "user_type",
-                "user_grade",
-                "is_active",
-                "is_staff",
-                "is_superuser",
-            ]
-            for field in restricted_fields:
-                if field in validated_data and getattr(instance, field) != validated_data[field]:
-                    raise serializers.ValidationError(f"'{field}' 필드를 변경할 권한이 없습니다.")
-
-        # If staff, but not superuser, prevent changing is_staff and is_superuser
-        if request_user.is_staff and not request_user.is_superuser:
-            if "is_staff" in validated_data and getattr(instance, "is_staff") != validated_data["is_staff"]:
-                raise serializers.ValidationError("is_staff 필드를 변경할 권한이 없습니다.")
-            if "is_superuser" in validated_data and getattr(instance, "is_superuser") != validated_data["is_superuser"]:
-                raise serializers.ValidationError("is_superuser 필드를 변경할 권한이 없습니다.")
+            except Exception as e:
+                raise CustomAPIException(f"이미지 업로드 실패: {e}")
 
         return super().update(instance, validated_data)
 
@@ -299,7 +277,7 @@ class PasswordResetConfirmSerializer(serializers.Serializer):
 
     def validate(self, data):
         if data["password"] != data["password_confirm"]:
-            raise serializers.ValidationError({"password": "비밀번호가 일치하지 않습니다."})
+            raise serializers.ValidationError("비밀번호가 일치하지 않습니다.")
         return data
 
 
@@ -311,16 +289,23 @@ class ResendVerificationEmailSerializer(serializers.Serializer):
     email = serializers.EmailField(required=True)
 
     def validate_email(self, value):
-        if not User.objects.filter(email=value).exists():
-            raise serializers.ValidationError("해당 이메일로 등록된 사용자가 없습니다.")
+        try:
+            user = User.objects.get(email=value)
+            if user.is_email_verified:
+                raise serializers.ValidationError("이미 이메일이 인증되었습니다.")
+        except User.DoesNotExist:
+            raise serializers.ValidationError("해당 이메일 주소로 등록된 사용자가 없습니다.")
         return value
 
 
 class UserBulkApproveSerializer(serializers.Serializer):
     user_ids = serializers.ListField(
-        child=serializers.IntegerField(min_value=1, error_messages={"min_value": "유효한 사용자 ID여야 합니다."}),
+        child=serializers.IntegerField(),
         min_length=1,
-        error_messages={"min_length": "최소 하나 이상의 사용자 ID가 필요합니다."},
+        error_messages={
+            "min_length": "최소 한 명의 사용자 ID를 포함해야 합니다.",
+            "empty": "사용자 ID 목록은 비어 있을 수 없습니다.",
+        },
     )
 
 
@@ -330,23 +315,13 @@ class PasswordChangeSerializer(serializers.Serializer):
     new_password_confirm = serializers.CharField(required=True, write_only=True)
 
     def validate(self, data):
-        user = self.context["request"].user
-
-        if not user.check_password(data["old_password"]):
-            raise serializers.ValidationError("현재 비밀번호가 일치하지 않습니다.")
-
         if data["new_password"] != data["new_password_confirm"]:
             raise serializers.ValidationError("새 비밀번호가 일치하지 않습니다.")
-
-        if data["old_password"] == data["new_password"]:
-            raise serializers.ValidationError("새 비밀번호는 현재 비밀번호와 달라야 합니다.")
-
-        PasswordValidator.validate_password(data["new_password"])
-
         return data
 
     def save(self, **kwargs):
         user = self.context["request"].user
+        if not user.check_password(self.validated_data["old_password"]):
+            raise serializers.ValidationError("이전 비밀번호가 올바르지 않습니다.")
         user.set_password(self.validated_data["new_password"])
         user.save()
-        return user

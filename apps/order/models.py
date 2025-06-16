@@ -1,7 +1,6 @@
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 
-from apps.order_status_log.models import OrderStatusLog
 from apps.user.models import User
 
 
@@ -48,11 +47,8 @@ class Order(models.Model):
         if self.pk is not None:
             old_instance = Order.objects.get(pk=self.pk)
             if old_instance.status != self.status:
-                OrderStatusLog.objects.create(
-                    order=self,
-                    status_from=old_instance.status,
-                    status_to=self.status,
-                )
+                # OrderStatusLog 생성은 signals.py에서 처리
+                pass
         super().save(*args, **kwargs)
 
 

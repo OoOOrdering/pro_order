@@ -6,13 +6,14 @@ from .models import DashboardSummary
 @admin.register(DashboardSummary)
 class DashboardSummaryAdmin(admin.ModelAdmin):
     list_display = (
-        "date",
+        "user",
         "total_orders",
         "total_revenue",
-        "total_users",
-        "total_reviews",
-        "updated_at",
+        "new_users_today",
+        "active_chat_rooms",
+        "unresolved_cs_posts",
+        "last_updated",
     )
-    list_filter = ("date", "updated_at")
-    search_fields = ("date",)
-    readonly_fields = ("created_at", "updated_at")
+    list_filter = ("last_updated",)
+    search_fields = ("user__nickname",)
+    readonly_fields = ("last_updated",)

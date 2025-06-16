@@ -1,14 +1,13 @@
 from rest_framework import status
 from rest_framework.exceptions import APIException
 
-from apps.user.responses import (
-    DUPLICATE_EMAIL,
-    EMAIL_ALREADY_VERIFIED,
-    INVALID_SIGNATURE,
-    SERVER_ERROR,
-    SIGNATURE_EXPIRED,
-    USER_NOT_FOUND,
-)
+# 응답 메시지 정의
+DUPLICATE_EMAIL = {"code": 400, "message": "이미 사용 중인 이메일입니다."}
+EMAIL_ALREADY_VERIFIED = {"code": 400, "message": "이미 인증된 이메일입니다."}
+INVALID_SIGNATURE = {"code": 400, "message": "유효하지 않은 토큰입니다."}
+SERVER_ERROR = {"code": 500, "message": "서버 내부 오류가 발생했습니다."}
+SIGNATURE_EXPIRED = {"code": 400, "message": "만료된 토큰입니다."}
+USER_NOT_FOUND = {"code": 404, "message": "사용자를 찾을 수 없습니다."}
 
 
 class CustomAPIException(APIException):

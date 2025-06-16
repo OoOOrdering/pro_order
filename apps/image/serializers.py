@@ -1,16 +1,19 @@
 from django.contrib.contenttypes.models import ContentType
 from rest_framework import serializers
 
+from apps.image.image_utils import delete_from_cloudinary, upload_to_cloudinary
 from apps.image.models import Image
-from apps.image.utils import delete_from_cloudinary, upload_to_cloudinary
 from utils.exceptions import CustomAPIException
-from utils.responses.image import (
-    IMAGE_CANNOT_VALIDATE_OWNERSHIP,
-    IMAGE_INVALID_MODEL,
-    IMAGE_NO_PERMISSION,
-    IMAGE_OBJECT_NOT_FOUND,
-    IMAGE_REQUEST_MISSING,
-)
+
+# Response constants
+IMAGE_CANNOT_VALIDATE_OWNERSHIP = {
+    "code": 403,
+    "message": "소유권을 확인할 수 없습니다.",
+}
+IMAGE_INVALID_MODEL = {"code": 400, "message": "유효하지 않은 모델입니다."}
+IMAGE_NO_PERMISSION = {"code": 403, "message": "권한이 없습니다."}
+IMAGE_OBJECT_NOT_FOUND = {"code": 404, "message": "객체를 찾을 수 없습니다."}
+IMAGE_REQUEST_MISSING = {"code": 400, "message": "요청이 누락되었습니다."}
 
 
 class ImageUploadSerializer(serializers.ModelSerializer):

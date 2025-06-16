@@ -1,6 +1,7 @@
 from django.contrib.auth.base_user import AbstractBaseUser, BaseUserManager
 from django.contrib.contenttypes.fields import GenericRelation
 from django.db import models
+from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
 from apps.image.models import Image
@@ -121,6 +122,18 @@ class User(AbstractBaseUser, TimestampModel):  # 기본 기능은 상속받아�
         return self.is_superuser
 
     ############################################
+
+    def increment_failed_login_attempts(self):
+        """로그인 실패 시도 횟수를 증가시키고 마지막 실패 시간을 업데이트합니다."""
+        self.failed_login_attempts += 1
+        self.last_failed_login_attempt = timezone.now()
+        self.save(update_fields=["failed_login_attempts", "last_failed_login_attempt"])
+
+    def reset_failed_login_attempts(self):
+        """로그인 실패 시도 횟수를 초기화합니다."""
+        self.failed_login_attempts = 0
+        self.last_failed_login_attempt = None
+        self.save(update_fields=["failed_login_attempts", "last_failed_login_attempt"])
 
 
 # @property

@@ -5,8 +5,14 @@ from .models import OrderStatusLog
 
 @admin.register(OrderStatusLog)
 class OrderStatusLogAdmin(admin.ModelAdmin):
-    list_display = ("order", "old_status", "new_status", "changed_at", "user")
-    list_filter = ("old_status", "new_status", "changed_at")
-    search_fields = ("order__order_number", "user__nickname", "reason")
-    raw_id_fields = ("order", "user")
-    readonly_fields = ("changed_at",)
+    list_display = (
+        "order",
+        "previous_status",
+        "new_status",
+        "changed_by",
+        "created_at",
+    )
+    list_filter = ("previous_status", "new_status", "created_at")
+    search_fields = ("order__order_number", "changed_by__nickname", "reason")
+    raw_id_fields = ("order", "changed_by")
+    readonly_fields = ("created_at",)

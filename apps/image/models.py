@@ -2,7 +2,7 @@ from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
 from django.db import models
 
-from .utils import generate_thumbnail_url
+from .image_utils import delete_from_cloudinary, generate_thumbnail_url
 
 
 class Image(models.Model):
@@ -43,8 +43,6 @@ class Image(models.Model):
 
     def delete(self, *args, **kwargs):
         """이미지 삭제 시 Cloudinary에서도 삭제합니다."""
-        from .utils import delete_from_cloudinary
-
         if self.public_id:
             try:
                 delete_from_cloudinary(self.public_id)

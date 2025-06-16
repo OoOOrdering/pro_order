@@ -63,6 +63,7 @@ jobs:
 
       - name: Install Packages & Libraries
         run: |
+          poetry lock
           poetry install --no-interaction --no-root
 
       - name: Run code format check (black & isort)

@@ -5,7 +5,7 @@ from .models import ChatRoom
 
 @admin.register(ChatRoom)
 class ChatRoomAdmin(admin.ModelAdmin):
-    list_display = ("pk", "user1", "user2", "created_at", "last_message_at")
-    list_filter = ("created_at", "last_message_at")
-    search_fields = ("user1__nickname", "user2__nickname")
-    raw_id_fields = ("user1", "user2")
+    list_display = ("name", "room_type", "created_by", "created_at")
+    list_filter = ("created_at", "room_type")
+    search_fields = ("name", "created_by__nickname")
+    raw_id_fields = ("created_by", "participants")

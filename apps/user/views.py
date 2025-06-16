@@ -1,30 +1,26 @@
 import logging
+from datetime import timedelta
+from smtplib import SMTPException
 
+# Django imports
 from django.conf import settings
 from django.contrib.auth import get_user_model
-from django.contrib.auth.password_validation import validate_password
 from django.core import signing
-from django.core.cache import cache
-from django.core.exceptions import SMTPException
 from django.core.signing import SignatureExpired, TimestampSigner
 from django.db import IntegrityError
 from django.shortcuts import get_object_or_404
-from django.utils import timezone
+
+# Third-party imports
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework import permissions, status
 from rest_framework.exceptions import ValidationError
-from rest_framework.generics import (
-    CreateAPIView,
-    RetrieveUpdateDestroyAPIView,
-)
+from rest_framework.generics import CreateAPIView
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.authentication import JWTAuthentication
-from rest_framework_simplejwt.serializers import (
-    TokenRefreshSerializer,
-)
+from rest_framework_simplejwt.serializers import TokenRefreshSerializer
 from rest_framework_simplejwt.views import TokenObtainPairView
 
 from apps.user.models import User
@@ -33,50 +29,58 @@ from apps.user.serializers import (
     LogoutSerializer,
     PasswordChangeSerializer,
     PasswordResetConfirmSerializer,
-    ProfileSerializer,
     ProfileUpdateSerializer,
     RegisterSerializer,
     ResendVerificationEmailSerializer,
     UserBulkApproveSerializer,
+    UserSerializer,
 )
 from apps.user.throttles import LoginAttemptThrottle
-from utils.cache_helpers import invalidate_user_cache
 from utils.csrf import generate_csrf_token, validate_csrf_token
 from utils.email import send_email
-from utils.responses.common import error_response, success_response
-from utils.responses.user import (
-    CSRF_INVALID_TOKEN,
-    EMAIL_SEND_FAILED,
-    INVALID_INPUT,
-    INVALID_PASSWORD,
-    INVALID_REFRESH_TOKEN,
-    INVALID_SIGNATURE,
-    LOGIN_FAILED,
-    LOGIN_SUCCESS,
-    LOGOUT_SUCCESS,
-    MISSING_REFRESH_TOKEN,
-    PASSWORD_CHANGED,
-    PROFILE_RETRIEVE_RESPONSE,
-    PROFILE_UPDATE_RESPONSE,
-    SIGNATURE_EXPIRED,
-    SIGNUP_PASSWORD_MISMATCH,
-    SIGNUP_SUCCESS,
-    TOKEN_REFRESH_RESPONSE,
-    UNAUTHORIZED,
-    VERIFY_EMAIL_ALREADY_VERIFIED,
-    VERIFY_EMAIL_SUCCESS,
-    WEAK_PASSWORD,
-)
-from utils.responses.user import SERVER_ERROR as SERVER_ERROR_RESPONSE
 
+# Local app imports
 from .exceptions import (
     CustomAPIException,
     DuplicateEmailError,
     DuplicateNicknameError,
-    EmailAlreadyVerifiedError,
     ServerError,
     UserNotFoundError,
 )
+
+
+# Helper functions for consistent API responses
+def success_response(message="Success", data=None, code=status.HTTP_200_OK):
+    return Response({"code": code, "message": message, "data": data}, status=code)
+
+
+def error_response(message="Error", data=None, code=status.HTTP_400_BAD_REQUEST):
+    return Response({"code": code, "message": message, "data": data}, status=code)
+
+
+# Response constants
+CSRF_INVALID_TOKEN = {"code": 403, "message": "CSRF 토큰이 유효하지 않습니다."}
+EMAIL_SEND_FAILED = {"code": 500, "message": "이메일 전송에 실패했습니다."}
+INVALID_PROFILE_UPDATE = {"code": 400, "message": "프로필 업데이트에 실패했습니다."}
+PASSWORD_NOT_MATCH = {"code": 400, "message": "비밀번호가 일치하지 않습니다."}
+INVALID_REFRESH_TOKEN = {"code": 401, "message": "유효하지 않은 리프레시 토큰입니다."}
+INVALID_SIGNATURE = {"code": 400, "message": "유효하지 않은 서명입니다."}
+LOGIN_FAILED = {"code": 401, "message": "로그인에 실패했습니다."}
+LOGIN_SUCCESS = {"code": 200, "message": "로그인에 성공했습니다."}
+LOGOUT_SUCCESS = {"code": 200, "message": "로그아웃에 성공했습니다."}
+MISSING_REFRESH_TOKEN = {"code": 401, "message": "리프레시 토큰이 누락되었습니다."}
+PASSWORD_CHANGED = {"code": 200, "message": "비밀번호가 변경되었습니다."}
+PROFILE_RETRIEVE_RESPONSE = {"code": 200, "message": "프로필 조회에 성공했습니다."}
+PROFILE_UPDATE_RESPONSE = {"code": 200, "message": "프로필 업데이트에 성공했습니다."}
+UNAUTHORIZED = {"code": 401, "message": "인증되지 않은 사용자입니다."}
+SERVER_ERROR = {"code": 500, "message": "서버 오류가 발생했습니다."}
+SIGNATURE_EXPIRED = {"code": 410, "message": "서명이 만료되었습니다."}
+SIGNUP_PASSWORD_MISMATCH = {"code": 400, "message": "비밀번호가 일치하지 않습니다."}
+SIGNUP_SUCCESS = {"code": 201, "message": "회원가입에 성공했습니다."}
+TOKEN_REFRESH_RESPONSE = {"code": 200, "message": "토큰이 갱신되었습니다."}
+VERIFY_EMAIL_ALREADY_VERIFIED = {"code": 400, "message": "이미 인증된 이메일입니다."}
+VERIFY_EMAIL_SUCCESS = {"code": 200, "message": "이메일 인증에 성공했습니다."}
+WEAK_PASSWORD = {"code": 400, "message": "비밀번호가 너무 약합니다."}
 
 logger = logging.getLogger("apps")
 
@@ -165,7 +169,11 @@ class RegisterView(CreateAPIView):
 
             custom_response["data"] = response_data
             logger.info(f"User registered successfully: {user.email}")
-            return Response(custom_response, status=status.HTTP_201_CREATED)
+            return success_response(
+                message=SIGNUP_SUCCESS["message"],
+                data=response_data,
+                code=status.HTTP_201_CREATED,
+            )
         except IntegrityError as e:
             if "email" in str(e):
                 logger.warning(f"Registration failed due to duplicate email: {serializer.validated_data.get('email')}")
@@ -252,33 +260,53 @@ class VerifyEmailView(APIView):
         },
     )
     def get(self, request):
-        code = request.GET.get("code")
-        if not code:
-            raise CustomAPIException(INVALID_SIGNATURE)
-
+        serializer = EmailVerificationSerializer(data=request.query_params)
         try:
-            signed_email = signing.loads(code, max_age=settings.EMAIL_VERIFICATION_TIMEOUT)
-            user = get_object_or_404(User, email=signed_email)
+            serializer.is_valid(raise_exception=True)
+            code = serializer.validated_data["code"]
+            signer = TimestampSigner()
+
+            try:
+                original_email = signer.unsign(signing.loads(code), max_age=timedelta(days=1))
+            except SignatureExpired:
+                logger.warning(f"Email verification failed: Signature expired for code {code[:10]}...")
+                return error_response(message=SIGNATURE_EXPIRED["message"], code=status.HTTP_410_GONE)
+            except signing.BadSignature:
+                logger.warning(f"Email verification failed: Invalid signature for code {code[:10]}...")
+                return error_response(
+                    message=INVALID_SIGNATURE["message"],
+                    code=status.HTTP_400_BAD_REQUEST,
+                )
+
+            user = User.objects.get(email=original_email)
 
             if user.is_email_verified:
-                raise EmailAlreadyVerifiedError()
+                logger.info(f"Email already verified for user: {user.email}")
+                return error_response(
+                    message=VERIFY_EMAIL_ALREADY_VERIFIED["message"],
+                    code=status.HTTP_400_BAD_REQUEST,
+                )
 
             user.is_email_verified = True
-            user.is_active = True
             user.save()
-
             logger.info(f"Email verified successfully for user: {user.email}")
-            return Response(VERIFY_EMAIL_SUCCESS)
-        except signing.BadSignature:
-            raise CustomAPIException(INVALID_SIGNATURE)
-        except SignatureExpired:
-            raise CustomAPIException(SIGNATURE_EXPIRED)
+            return success_response(message=VERIFY_EMAIL_SUCCESS["message"])
+
+        except User.DoesNotExist:
+            logger.warning("Email verification failed: User not found for provided token.")
+            return error_response(message="사용자를 찾을 수 없습니다.", code=status.HTTP_404_NOT_FOUND)
+        except ValidationError as e:
+            logger.warning(f"Email verification failed due to validation error: {e.detail}")
+            return error_response(
+                message="유효하지 않은 요청입니다.",
+                data=e.detail,
+                code=status.HTTP_400_BAD_REQUEST,
+            )
         except Exception as e:
             logger.error(f"Unexpected error during email verification: {e}", exc_info=True)
             raise ServerError()
 
 
-# JWT 로그인
 class CustomTokenObtainPairView(TokenObtainPairView):
     """JWT 로그인 API.
 
@@ -337,59 +365,56 @@ class CustomTokenObtainPairView(TokenObtainPairView):
         },
     )
     def post(self, request, *args, **kwargs):
-        # CustomTokenObtainPairSerializer를 사용하여 토큰 발급 및 응답 생성
+        serializer = self.get_serializer(data=request.data)
+        try:
+            serializer.is_valid(raise_exception=True)
+            user = User.objects.get(email=serializer.validated_data["email"])
+            user.reset_failed_login_attempts()  # 로그인 성공 시 실패 횟수 초기화
+            logger.info(f"User logged in successfully: {user.email}")
+        except User.DoesNotExist:
+            logger.warning(f"Login failed: User not found for email {serializer.validated_data.get('email')}")
+            raise UserNotFoundError()
+        except ValidationError as e:
+            logger.warning(f"Login validation error for user {serializer.validated_data.get('email')}: {e.detail}")
+            # 로그인 실패 시 실패 횟수 증가
+            email = serializer.initial_data.get("email")
+            if email:
+                try:
+                    user = User.objects.get(email=email)
+                    user.increment_failed_login_attempts()
+                except User.DoesNotExist:
+                    pass  # User does not exist, no need to increment attempts
+
+            raise e  # re-raise the validation error
+        except Exception as e:
+            logger.error(f"Unexpected error during login: {e}", exc_info=True)
+            raise ServerError()
+
         response = super().post(request, *args, **kwargs)
 
-        if response.status_code == 200:
-            # 사용자 정보 가져오기
-            user = User.objects.get(email=request.data["email"])
-            user.last_login = timezone.now()
-            user.save()
+        # CSRF 토큰 생성
+        csrf_token = generate_csrf_token(request)
 
-            # CSRF 토큰 생성
-            csrf_token = generate_csrf_token()
+        # 리프레시 토큰을 HttpOnly 쿠키에 설정
+        response.set_cookie(
+            settings.SIMPLE_JWT["REFRESH_TOKEN_NAME"],
+            response.data["refresh"],
+            max_age=settings.SIMPLE_JWT["REFRESH_TOKEN_LIFETIME"].total_seconds(),
+            httponly=True,
+            samesite="Lax",
+            secure=settings.DEBUG,  # 프로덕션에서는 True로 설정
+            path="/api/users/token/",
+        )
+        del response.data["refresh"]  # 응답 본문에서 리프레시 토큰 제거
 
-            # 응답 데이터 구성
-            response_data = {
-                "code": LOGIN_SUCCESS["code"],
-                "message": LOGIN_SUCCESS["message"],
-                "data": {
-                    "access_token": response.data["access"],
-                    "csrf_token": csrf_token,
-                },
-            }
-
-            # 리프레시 토큰을 HttpOnly 쿠키로 설정
-            response = Response(response_data)
-            response.set_cookie(
-                key="refresh_token",
-                value=response.data["refresh"],
-                httponly=True,
-                secure=settings.COOKIE_SECURE,
-                samesite=settings.COOKIE_SAMESITE,
-                path="/api/users/token",
-                max_age=settings.REFRESH_TOKEN_LIFETIME.total_seconds(),
-            )
-
-            # 로그인 성공 시 실패 시도 횟수 초기화
-            ident = self.get_ident(request)
-            cache.delete(f"login_failed_attempts_{ident}")
-            cache.delete(f"login_last_failed_attempt_time_{ident}")
-
-            logger.info(f"User logged in successfully: {user.email}")
-            return response
-
-        # 로그인 실패 시 실패 시도 횟수 증가
-        ident = self.get_ident(request)
-        failed_attempts = cache.get(f"login_failed_attempts_{ident}", 0) + 1
-        cache.set(f"login_failed_attempts_{ident}", failed_attempts)
-        cache.set(f"login_last_failed_attempt_time_{ident}", timezone.now())
-
-        logger.warning(f"Login failed for email: {request.data.get('email')}")
-        return Response(LOGIN_FAILED, status=status.HTTP_401_UNAUTHORIZED)
+        # 응답 본문에 액세스 토큰과 CSRF 토큰 추가
+        response.data["access_token"] = response.data["access"]
+        response.data["csrf_token"] = csrf_token
+        del response.data["access"]
+        logger.info(f"JWT tokens issued for user: {user.email}")
+        return success_response(message=LOGIN_SUCCESS["message"], data=response.data)
 
 
-# 로그아웃
 class LogoutAPIView(APIView):
     """JWT 로그아웃 API.
 
@@ -405,6 +430,7 @@ class LogoutAPIView(APIView):
         request_body=None,
         responses={
             200: openapi.Response(
+                description="로그아웃 성공",
                 type=openapi.TYPE_OBJECT,
                 properties={
                     "code": openapi.Schema(type=openapi.TYPE_INTEGER, example=LOGOUT_SUCCESS["code"]),
@@ -432,41 +458,36 @@ class LogoutAPIView(APIView):
         },
     )
     def post(self, request, *args, **kwargs):
-        # 쿠키에서 Refresh Token 가져오기
-        refresh_token = request.COOKIES.get("refresh_token")
+        serializer = LogoutSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        refresh_token = request.COOKIES.get(settings.SIMPLE_JWT["REFRESH_TOKEN_NAME"])
+
         if not refresh_token:
-            logger.warning("Logout failed: No refresh token in cookies")
-            raise CustomAPIException(MISSING_REFRESH_TOKEN)
+            logger.warning("Logout failed: Missing refresh token in cookies.")
+            return error_response(
+                message=MISSING_REFRESH_TOKEN["message"],
+                code=status.HTTP_401_UNAUTHORIZED,
+            )
 
-        # Refresh Token 블랙리스트에 추가
-        serializer = LogoutSerializer(data={"refresh_token": refresh_token})
         try:
-            serializer.is_valid(raise_exception=True)
-            serializer.save()
+            token = TokenRefreshSerializer().token_class(refresh_token)
+            token.blacklist()  # 리프레시 토큰을 블랙리스트에 추가
+            logger.info("Refresh token blacklisted successfully.")
         except Exception as e:
-            logger.error(f"Error during logout: {e}", exc_info=True)
-            raise CustomAPIException(INVALID_REFRESH_TOKEN)
+            logger.error(f"Error blacklisting refresh token: {e}", exc_info=True)
+            return error_response(
+                message=INVALID_REFRESH_TOKEN["message"],
+                code=status.HTTP_401_UNAUTHORIZED,
+            )
 
-        # 쿠키에서 Refresh Token 삭제
-        response = Response(LOGOUT_SUCCESS)
-        response.delete_cookie(
-            key="refresh_token",
-            path="/api/users/token",
-            samesite=settings.COOKIE_SAMESITE,
-            secure=settings.COOKIE_SECURE,
-        )
-
-        logger.info(f"User logged out successfully: {request.user.email}")
+        response = success_response(message=LOGOUT_SUCCESS["message"])
+        response.delete_cookie(settings.SIMPLE_JWT["REFRESH_TOKEN_NAME"])  # 쿠키에서 리프레시 토큰 삭제
+        logger.info("User logged out successfully.")
         return response
 
 
-# 토큰 재발급
 class CustomTokenRefreshView(APIView):
-    """JWT 토큰 갱신 API.
-
-    HttpOnly 쿠키에 저장된 리프레시 토큰을 사용하여 새로운 액세스 토큰을 발급합니다.
-    """
-
     @swagger_auto_schema(
         tags=["유저"],
         operation_summary="액세스 토큰 재발급",
@@ -550,44 +571,41 @@ class CustomTokenRefreshView(APIView):
     )
     def post(self, request, *args, **kwargs):
         # CSRF 토큰 검증
-        csrf_token = request.headers.get("X-CSRFToken")
-        if not csrf_token or not validate_csrf_token(csrf_token):
-            logger.warning("Token refresh failed: Invalid CSRF token")
-            raise CustomAPIException(CSRF_INVALID_TOKEN)
+        csrf_token_header = request.headers.get("X-CSRFToken")
+        if not csrf_token_header or not validate_csrf_token(request, csrf_token_header):
+            logger.warning("Token refresh failed: Invalid CSRF token.")
+            return error_response(message=CSRF_INVALID_TOKEN["message"], code=status.HTTP_403_FORBIDDEN)
 
-        # 쿠키에서 Refresh Token 가져오기
-        refresh_token = request.COOKIES.get("refresh_token")
+        # 리프레시 토큰을 쿠키에서 가져오기
+        refresh_token = request.COOKIES.get(settings.SIMPLE_JWT["REFRESH_TOKEN_NAME"])
         if not refresh_token:
-            logger.warning("Token refresh failed: No refresh token in cookies")
-            raise CustomAPIException(MISSING_REFRESH_TOKEN)
+            logger.warning("Token refresh failed: Missing refresh token in cookies.")
+            return error_response(
+                message=MISSING_REFRESH_TOKEN["message"],
+                code=status.HTTP_401_UNAUTHORIZED,
+            )
 
-        # Refresh Token으로 새로운 Access Token 발급
         serializer = TokenRefreshSerializer(data={"refresh": refresh_token})
         try:
             serializer.is_valid(raise_exception=True)
+            logger.info("Tokens refreshed successfully.")
+        except ValidationError as e:
+            logger.warning(f"Token refresh failed due to validation error: {e.detail}")
+            return error_response(
+                message=INVALID_REFRESH_TOKEN["message"],
+                data=e.detail,
+                code=status.HTTP_401_UNAUTHORIZED,
+            )
         except Exception as e:
-            logger.error(f"Token refresh failed: {e}", exc_info=True)
-            raise CustomAPIException(INVALID_REFRESH_TOKEN)
+            logger.error(f"Unexpected error during token refresh: {e}", exc_info=True)
+            raise ServerError()
 
-        # 새로운 CSRF 토큰 생성
-        new_csrf_token = generate_csrf_token()
+        access_token = serializer.validated_data["access"]
+        new_csrf_token = generate_csrf_token(request)  # 새로운 CSRF 토큰 생성
 
-        # 응답 데이터 구성
-        response_data = {
-            "code": TOKEN_REFRESH_RESPONSE["code"],
-            "message": TOKEN_REFRESH_RESPONSE["message"],
-            "data": {
-                "access_token": serializer.validated_data["access"],
-                "csrf_token": new_csrf_token,
-            },
-        }
-
-        logger.info("Token refreshed successfully")
-        return Response(response_data)
-
-
-# 토큰 정보 확인
-# https://jwt.io/
+        response_data = {"access_token": access_token, "csrf_token": new_csrf_token}
+        response = success_response(message=TOKEN_REFRESH_RESPONSE["message"], data=response_data)
+        return response
 
 
 class TokenInfoAPIView(APIView):
@@ -606,7 +624,7 @@ class TokenInfoAPIView(APIView):
         responses={
             200: openapi.Response(
                 description="토큰 정보 확인 성공",
-                schema=ProfileSerializer,
+                schema=UserSerializer,
             ),
             401: openapi.Response(
                 description="JWT 인증 실패",
@@ -622,13 +640,12 @@ class TokenInfoAPIView(APIView):
         },
     )
     def get(self, request):
-        user = request.user
-        serializer = ProfileSerializer(user)
-        logger.info(f"Token info retrieved for user: {user.email}")
-        return success_response(data=serializer.data, message="토큰 정보 확인 성공")
+        # 사용자 인스턴스를 직렬화하여 반환
+        serializer = UserSerializer(request.user)
+        logger.info(f"Token info retrieved for user: {request.user.email}")
+        return success_response(message=PROFILE_RETRIEVE_RESPONSE["message"], data=serializer.data)
 
 
-# 유저 수전 승인 (관리자 전용)
 class UserBulkApproveView(APIView):
     permission_classes = [permissions.IsAdminUser]
     authentication_classes = [JWTAuthentication]
@@ -669,203 +686,51 @@ class UserBulkApproveView(APIView):
     )
     def post(self, request, *args, **kwargs):
         serializer = UserBulkApproveSerializer(data=request.data)
-        if serializer.is_valid():
+        try:
+            serializer.is_valid(raise_exception=True)
             user_ids = serializer.validated_data["user_ids"]
             approved_count = 0
-
             for user_id in user_ids:
-                try:
-                    user = User.objects.get(id=user_id, is_active=False, is_email_verified=True)
+                user = get_object_or_404(User, pk=user_id)
+                if not user.is_email_verified:
+                    logger.warning(f"User {user.email} (ID: {user_id}) not email verified. Skipping approval.")
+                    continue  # 이메일 인증이 안 된 사용자는 건너뛰기
+
+                if not user.is_active:
                     user.is_active = True
                     user.save()
                     approved_count += 1
-                    logger.info(f"User {user.email} approved by admin {request.user.email}")
-                except User.DoesNotExist:
-                    continue
+                    logger.info(f"User {user.email} (ID: {user_id}) approved successfully.")
+                else:
+                    logger.info(f"User {user.email} (ID: {user_id}) is already active. Skipping approval.")
 
-            return success_response(
-                data={"approved_count": approved_count},
-                message="선택된 사용자 계정이 성공적으로 활성화되었습니다.",
+            if approved_count > 0:
+                message = f"{approved_count}명의 사용자 계정이 성공적으로 활성화되었습니다."
+                logger.info(message)
+                return success_response(message=message, data={"approved_count": approved_count})
+            else:
+                message = "승인할 사용자 계정이 없거나, 이미 활성화된 계정입니다."
+                logger.info(message)
+                return success_response(message=message, data={"approved_count": approved_count})
+
+        except ValidationError as e:
+            logger.warning(f"User bulk approve failed due to validation error: {e.detail}")
+            return error_response(
+                message="잘못된 요청입니다.",
+                data=e.detail,
+                code=status.HTTP_400_BAD_REQUEST,
             )
-        return error_response(INVALID_INPUT)
-
-
-# 유저 프로필 조회 및 업데이트
-class UserProfileView(RetrieveUpdateDestroyAPIView):
-    """사용자 프로필 조회, 수정, 삭제(비활성화) API.
-
-    - GET: 현재 로그인한 사용자의 프로필 정보를 조회합니다.
-    - PATCH: 현재 로그인한 사용자의 프로필 정보를 수정합니다.
-    - DELETE: 현재 로그인한 사용자의 계정을 비활성화합니다.
-    """
-
-    serializer_class = ProfileSerializer
-    permission_classes = [permissions.IsAuthenticated]
-    authentication_classes = [JWTAuthentication]
-
-    @swagger_auto_schema(
-        tags=["유저/프로필"],
-        operation_summary="프로필 조회",
-        operation_description="현재 로그인한 사용자의 프로필 정보를 조회합니다.",
-        responses={
-            200: openapi.Response(
-                description="프로필 조회 성공",
-                schema=ProfileSerializer,
-            ),
-            401: openapi.Response(
-                description="인증되지 않은 사용자",
-                schema=openapi.Schema(
-                    type=openapi.TYPE_OBJECT,
-                    properties={
-                        "code": openapi.Schema(
-                            type=openapi.TYPE_INTEGER,
-                            example=UNAUTHORIZED["code"],
-                        ),
-                        "message": openapi.Schema(
-                            type=openapi.TYPE_STRING,
-                            example=UNAUTHORIZED["message"],
-                        ),
-                        "data": None,
-                    },
-                ),
-            ),
-        },
-    )
-    def get(self, request, *args, **kwargs):
-        """사용자 프로필 정보를 조회합니다."""
-        serializer = self.serializer_class(request.user)
-        response_data = {
-            "code": PROFILE_RETRIEVE_RESPONSE["code"],
-            "message": PROFILE_RETRIEVE_RESPONSE["message"],
-            "data": serializer.data,
-        }
-        return Response(response_data)
-
-    @swagger_auto_schema(
-        tags=["유저/프로필"],
-        operation_summary="프로필 수정",
-        operation_description="현재 로그인한 사용자의 프로필 정보를 수정합니다.",
-        request_body=ProfileUpdateSerializer,
-        responses={
-            200: openapi.Response(
-                description="프로필 수정 성공",
-                schema=ProfileSerializer,
-            ),
-            400: openapi.Response(
-                description="유효하지 않은 입력",
-                schema=openapi.Schema(
-                    type=openapi.TYPE_OBJECT,
-                    properties={
-                        "code": openapi.Schema(type=openapi.TYPE_INTEGER, example=400),
-                        "message": openapi.Schema(
-                            type=openapi.TYPE_STRING,
-                            example="닉네임은 필수 항목입니다.",
-                        ),
-                        "data": None,
-                    },
-                ),
-            ),
-            401: openapi.Response(
-                description="인증되지 않은 사용자",
-                schema=openapi.Schema(
-                    type=openapi.TYPE_OBJECT,
-                    properties={
-                        "code": openapi.Schema(
-                            type=openapi.TYPE_INTEGER,
-                            example=UNAUTHORIZED["code"],
-                        ),
-                        "message": openapi.Schema(
-                            type=openapi.TYPE_STRING,
-                            example=UNAUTHORIZED["message"],
-                        ),
-                        "data": None,
-                    },
-                ),
-            ),
-        },
-    )
-    def patch(self, request, *args, **kwargs):
-        """사용자 프로필 정보를 수정합니다."""
-        serializer = self.serializer_class(request.user, data=request.data, partial=True)
-        if not serializer.is_valid():
-            logger.warning(f"Profile update failed: {serializer.errors}")
-            raise CustomAPIException(INVALID_INPUT)
-
-        serializer.save()
-        response_data = {
-            "code": PROFILE_UPDATE_RESPONSE["code"],
-            "message": PROFILE_UPDATE_RESPONSE["message"],
-            "data": serializer.data,
-        }
-        logger.info(f"Profile updated successfully for user: {request.user.email}")
-        return Response(response_data)
-
-    @swagger_auto_schema(
-        tags=["유저/프로필"],
-        operation_summary="계정 비활성화",
-        operation_description="현재 로그인한 사용자의 계정을 비활성화합니다. 계정 비활성화는 탈퇴를 의미하며, 비활성화된 계정은 로그인할 수 없습니다.",
-        responses={
-            200: openapi.Response(
-                description="계정 비활성화 성공",
-                schema=openapi.Schema(
-                    type=openapi.TYPE_OBJECT,
-                    properties={
-                        "message": openapi.Schema(
-                            type=openapi.TYPE_STRING,
-                            example="계정이 비활성화되었습니다.",
-                        ),
-                        "status": openapi.Schema(type=openapi.TYPE_STRING, example="success"),
-                    },
-                ),
-            ),
-            401: openapi.Response(
-                description="인증되지 않은 사용자",
-                schema=openapi.Schema(
-                    type=openapi.TYPE_OBJECT,
-                    properties={
-                        "code": openapi.Schema(type=openapi.TYPE_INTEGER, example=UNAUTHORIZED["code"]),
-                        "message": openapi.Schema(type=openapi.TYPE_STRING, example=UNAUTHORIZED["message"]),
-                        "data": None,
-                    },
-                ),
-            ),
-        },
-    )
-    def delete(self, request, *args, **kwargs):
-        try:
-            response = super().delete(request, *args, **kwargs)
-            invalidate_user_cache(request.user.id)  # 통합된 캐시 무효화 함수 사용
-            logger.info(f"User account deactivated successfully and cache invalidated for user: {request.user.email}")
-            return success_response(data=None, message="계정이 비활성화되었습니다.")
+        except User.DoesNotExist:
+            logger.warning("User bulk approve failed: One or more users not found.")
+            return error_response(
+                message="존재하지 않는 사용자 ID가 포함되어 있습니다.",
+                code=status.HTTP_404_NOT_FOUND,
+            )
         except Exception as e:
-            logger.error(
-                f"User account deactivation failed for user {request.user.email}: {e}",
-                exc_info=True,
-            )
-            return error_response(message="계정 비활성화 실패", code=500)
-
-    def get_object(self):
-        return self.request.user
-
-    def get_serializer_class(self):
-        if self.request.method in ["PUT", "PATCH"]:
-            return ProfileUpdateSerializer
-        return ProfileSerializer
-
-    def perform_destroy(self, instance):
-        instance.is_active = False
-        instance.save()
-
-    def destroy(self, request, *args, **kwargs):
-        instance = self.get_object()
-        self.perform_destroy(instance)
-        return Response(
-            {"message": "계정이 비활성화되었습니다.", "status": "success"},
-            status=status.HTTP_200_OK,
-        )
+            logger.error(f"Unexpected error during user bulk approval: {e}", exc_info=True)
+            raise ServerError()
 
 
-# 이메일 인증 토큰 생성/확인
 class EmailVerificationView(APIView):
     permission_classes = [AllowAny]
 
@@ -881,35 +746,40 @@ class EmailVerificationView(APIView):
     )
     def post(self, request):
         serializer = EmailVerificationSerializer(data=request.data)
-        if not serializer.is_valid():
-            return error_response(INVALID_INPUT)
-
         try:
-            code = serializer.validated_data["code"]
-            signed_email = signing.loads(code)
-            email = TimestampSigner().unsign(signed_email, max_age=settings.EMAIL_VERIFICATION_TIMEOUT)
-            user = User.objects.get(email=email)
+            serializer.is_valid(raise_exception=True)
+            email = serializer.validated_data["email"]
+            token = serializer.validated_data["token"]
 
+            user = get_object_or_404(User, email=email)
+            if user.email_verification_token != token:
+                logger.warning(f"Email verification failed for {email}: Invalid token.")
+                return error_response(message="잘못된 인증 토큰입니다.", code=status.HTTP_400_BAD_REQUEST)
             if user.is_email_verified:
-                return error_response(VERIFY_EMAIL_ALREADY_VERIFIED)
+                logger.info(f"Email for {email} is already verified.")
+                return error_response(
+                    message=VERIFY_EMAIL_ALREADY_VERIFIED["message"],
+                    code=status.HTTP_400_BAD_REQUEST,
+                )
 
             user.is_email_verified = True
+            user.email_verification_token = None
             user.save()
-            logger.info(f"Email verified for user: {user.email}")
+            logger.info(f"Email verified successfully for {email}.")
             return success_response(message=VERIFY_EMAIL_SUCCESS["message"])
-
-        except signing.BadSignature:
-            logger.warning(f"Invalid verification code attempted: {code}")
-            return error_response(INVALID_SIGNATURE)
-        except SignatureExpired:
-            logger.warning(f"Expired verification code attempted: {code}")
-            return error_response(SIGNATURE_EXPIRED)
+        except ValidationError as e:
+            logger.warning(f"Email verification validation error: {e.detail}")
+            return error_response(
+                message="잘못된 요청입니다.",
+                data=e.detail,
+                code=status.HTTP_400_BAD_REQUEST,
+            )
         except User.DoesNotExist:
-            logger.warning(f"Verification attempted for non-existent user with email: {email}")
-            return error_response(UserNotFoundError())
+            logger.warning(f"Email verification failed: User with email {request.data.get('email')} not found.")
+            return error_response(message="사용자를 찾을 수 없습니다.", code=status.HTTP_404_NOT_FOUND)
         except Exception as e:
-            logger.error(f"Unexpected error during email verification: {e}", exc_info=True)
-            return error_response(SERVER_ERROR_RESPONSE)
+            logger.error(f"Unexpected error during email verification POST: {e}", exc_info=True)
+            raise ServerError()
 
 
 class ResendVerificationEmailView(APIView):
@@ -927,16 +797,20 @@ class ResendVerificationEmailView(APIView):
     )
     def post(self, request):
         serializer = ResendVerificationEmailSerializer(data=request.data)
-        if not serializer.is_valid():
-            return error_response(INVALID_INPUT)
-
         try:
+            serializer.is_valid(raise_exception=True)
             email = serializer.validated_data["email"]
-            user = User.objects.get(email=email)
+
+            user = get_object_or_404(User, email=email)
 
             if user.is_email_verified:
-                return error_response(VERIFY_EMAIL_ALREADY_VERIFIED)
+                logger.warning(f"Resend verification email failed for {email}: Already verified.")
+                return error_response(
+                    message=VERIFY_EMAIL_ALREADY_VERIFIED["message"],
+                    code=status.HTTP_400_BAD_REQUEST,
+                )
 
+            # 이메일 전송 로직 (RegisterView와 유사)
             signer = TimestampSigner()
             signed_email = signer.sign(user.email)
             signed_code = signing.dumps(signed_email)
@@ -947,18 +821,30 @@ class ResendVerificationEmailView(APIView):
             message = f"아래 링크를 클릭해 인증을 완료해주세요.\n\n{verify_url}"
             send_email(subject, message, user.email)
 
-            logger.info(f"Verification email resent to user: {user.email}")
+            logger.info(f"Verification email re-sent to user: {user.email}")
             return success_response(message="인증 이메일이 재전송되었습니다.")
-
+        except ValidationError as e:
+            logger.warning(f"Resend verification email validation error: {e.detail}")
+            return error_response(
+                message="잘못된 요청입니다.",
+                data=e.detail,
+                code=status.HTTP_400_BAD_REQUEST,
+            )
         except User.DoesNotExist:
-            logger.warning(f"Resend verification attempted for non-existent user with email: {email}")
-            return error_response(UserNotFoundError())
+            logger.warning(f"Resend verification email failed: User with email {request.data.get('email')} not found.")
+            return error_response(message="사용자를 찾을 수 없습니다.", code=status.HTTP_404_NOT_FOUND)
         except SMTPException as e:
-            logger.error(f"Failed to send verification email to {email}: {e}", exc_info=True)
-            return error_response(EMAIL_SEND_FAILED)
+            logger.error(
+                f"Email sending failed during re-sending verification email for user {email}: {e}",
+                exc_info=True,
+            )
+            raise CustomAPIException(EMAIL_SEND_FAILED)
         except Exception as e:
-            logger.error(f"Unexpected error during verification email resend: {e}", exc_info=True)
-            return error_response(SERVER_ERROR_RESPONSE)
+            logger.error(
+                f"Unexpected error during re-sending verification email: {e}",
+                exc_info=True,
+            )
+            raise ServerError()
 
 
 class UserPasswordChangeAPIView(APIView):
@@ -990,8 +876,14 @@ class UserPasswordChangeAPIView(APIView):
                 schema=openapi.Schema(
                     type=openapi.TYPE_OBJECT,
                     properties={
-                        "code": openapi.Schema(type=openapi.TYPE_INTEGER, example=INVALID_INPUT["code"]),
-                        "message": openapi.Schema(type=openapi.TYPE_STRING, example=INVALID_INPUT["message"]),
+                        "code": openapi.Schema(
+                            type=openapi.TYPE_INTEGER,
+                            example=INVALID_PROFILE_UPDATE["code"],
+                        ),
+                        "message": openapi.Schema(
+                            type=openapi.TYPE_STRING,
+                            example=INVALID_PROFILE_UPDATE["message"],
+                        ),
                         "data": None,
                     },
                 ),
@@ -1010,31 +902,25 @@ class UserPasswordChangeAPIView(APIView):
         },
     )
     def post(self, request, *args, **kwargs):
-        serializer = self.serializer_class(data=request.data)
-        if not serializer.is_valid():
-            return error_response(INVALID_INPUT)
-
+        serializer = self.serializer_class(data=request.data, context={"request": request})
         try:
-            user = request.user
-            old_password = serializer.validated_data["old_password"]
-            new_password = serializer.validated_data["new_password"]
-
-            if not user.check_password(old_password):
-                return error_response(INVALID_PASSWORD)
-
-            try:
-                validate_password(new_password, user)
-            except ValidationError as e:
-                return error_response(WEAK_PASSWORD)
-
-            user.set_password(new_password)
-            user.save()
-            logger.info(f"Password changed for user: {user.email}")
+            serializer.is_valid(raise_exception=True)
+            serializer.save()
+            logger.info(f"Password changed successfully for user: {request.user.email}")
             return success_response(message=PASSWORD_CHANGED["message"])
-
+        except ValidationError as e:
+            logger.warning(f"Password change failed for user {request.user.email} due to validation error: {e.detail}")
+            return error_response(
+                message=INVALID_PROFILE_UPDATE["message"],
+                data=e.detail,
+                code=status.HTTP_400_BAD_REQUEST,
+            )
         except Exception as e:
-            logger.error(f"Unexpected error during password change: {e}", exc_info=True)
-            return error_response(SERVER_ERROR_RESPONSE)
+            logger.error(
+                f"Unexpected error during password change for user {request.user.email}: {e}",
+                exc_info=True,
+            )
+            raise ServerError()
 
 
 class PasswordResetView(APIView):
@@ -1056,32 +942,31 @@ class PasswordResetView(APIView):
     def post(self, request):
         email = request.data.get("email")
         if not email:
-            return error_response(INVALID_INPUT)
-
+            logger.warning("Password reset failed: Email not provided.")
+            return error_response(message="이메일을 입력해주세요.", code=status.HTTP_400_BAD_REQUEST)
         try:
             user = User.objects.get(email=email)
             signer = TimestampSigner()
-            signed_email = signer.sign(user.email)
-            signed_code = signing.dumps(signed_email)
+            token = signer.sign(str(user.pk))
+            reset_url = f"{request.scheme}://{request.get_host()}/reset-password-confirm?uid={user.pk}&token={token}"
 
-            reset_url = f"{request.scheme}://{request.get_host()}/api/users/reset-password/confirm?code={signed_code}"
-
-            subject = "[WiStar] 비밀번호 재설정"
-            message = f"아래 링크를 클릭해 비밀번호를 재설정해주세요.\n\n{reset_url}"
+            subject = "[WiStar] 비밀번호 재설정 링크"
+            message = f"비밀번호를 재설정하려면 다음 링크를 클릭하세요: {reset_url}"
             send_email(subject, message, user.email)
-
-            logger.info(f"Password reset email sent to user: {user.email}")
+            logger.info(f"Password reset email sent to: {user.email}")
             return success_response(message="비밀번호 재설정 이메일이 전송되었습니다.")
-
         except User.DoesNotExist:
-            logger.warning(f"Password reset attempted for non-existent user with email: {email}")
-            return error_response(UserNotFoundError())
+            logger.warning(f"Password reset failed: User with email {email} not found.")
+            return error_response(message="등록된 이메일이 아닙니다.", code=status.HTTP_404_NOT_FOUND)
         except SMTPException as e:
-            logger.error(f"Failed to send password reset email to {email}: {e}", exc_info=True)
-            return error_response(EMAIL_SEND_FAILED)
+            logger.error(
+                f"Email sending failed during password reset for user {email}: {e}",
+                exc_info=True,
+            )
+            raise CustomAPIException(EMAIL_SEND_FAILED)
         except Exception as e:
-            logger.error(f"Unexpected error during password reset request: {e}", exc_info=True)
-            return error_response(SERVER_ERROR_RESPONSE)
+            logger.error(f"Unexpected error during password reset: {e}", exc_info=True)
+            raise ServerError()
 
 
 class PasswordResetConfirmView(APIView):
@@ -1099,39 +984,128 @@ class PasswordResetConfirmView(APIView):
     )
     def post(self, request):
         serializer = PasswordResetConfirmSerializer(data=request.data)
-        if not serializer.is_valid():
-            return error_response(INVALID_INPUT)
-
         try:
-            code = serializer.validated_data["code"]
+            serializer.is_valid(raise_exception=True)
+            uid = serializer.validated_data["uid"]
+            token = serializer.validated_data["token"]
             new_password = serializer.validated_data["new_password"]
 
-            signed_email = signing.loads(code)
-            email = TimestampSigner().unsign(signed_email, max_age=settings.PASSWORD_RESET_TIMEOUT)
-            user = User.objects.get(email=email)
-
+            user = get_object_or_404(User, pk=uid)
+            signer = TimestampSigner()
             try:
-                validate_password(new_password, user)
-            except ValidationError as e:
-                return error_response(WEAK_PASSWORD)
+                signer.unsign(token, max_age=timedelta(hours=1))  # 1시간 유효
+            except SignatureExpired:
+                logger.warning(f"Password reset confirmation failed for user {user.email}: Token expired.")
+                return error_response(
+                    message="비밀번호 재설정 토큰이 만료되었습니다.",
+                    code=status.HTTP_410_GONE,
+                )
+            except signing.BadSignature:
+                logger.warning(f"Password reset confirmation failed for user {user.email}: Invalid token.")
+                return error_response(
+                    message="유효하지 않은 비밀번호 재설정 토큰입니다.",
+                    code=status.HTTP_400_BAD_REQUEST,
+                )
 
             user.set_password(new_password)
             user.save()
-            logger.info(f"Password reset completed for user: {user.email}")
+            logger.info(f"Password reset successfully for user: {user.email}")
             return success_response(message="비밀번호가 성공적으로 재설정되었습니다.")
-
-        except signing.BadSignature:
-            logger.warning(f"Invalid password reset code attempted: {code}")
-            return error_response(INVALID_SIGNATURE)
-        except SignatureExpired:
-            logger.warning(f"Expired password reset code attempted: {code}")
-            return error_response(SIGNATURE_EXPIRED)
+        except ValidationError as e:
+            logger.warning(f"Password reset confirmation validation error: {e.detail}")
+            return error_response(
+                message="잘못된 요청입니다.",
+                data=e.detail,
+                code=status.HTTP_400_BAD_REQUEST,
+            )
         except User.DoesNotExist:
-            logger.warning(f"Password reset attempted for non-existent user with email: {email}")
-            return error_response(UserNotFoundError())
+            logger.warning("Password reset confirmation failed: User not found.")
+            return error_response(message="사용자를 찾을 수 없습니다.", code=status.HTTP_404_NOT_FOUND)
         except Exception as e:
             logger.error(
                 f"Unexpected error during password reset confirmation: {e}",
                 exc_info=True,
             )
-            return error_response(SERVER_ERROR_RESPONSE)
+            raise ServerError()
+
+
+class UserListView(APIView):
+    """사용자 목록 조회 API.
+
+    관리자만 접근 가능한 사용자 목록 조회 API입니다.
+    """
+
+    permission_classes = [permissions.IsAdminUser]
+    authentication_classes = [JWTAuthentication]
+
+    @swagger_auto_schema(
+        tags=["관리자/유저"],
+        operation_summary="사용자 목록 조회",
+        operation_description="관리자가 모든 사용자의 목록을 조회합니다.",
+        responses={
+            200: UserSerializer(many=True),
+            401: "인증되지 않은 사용자",
+            403: "권한이 없는 사용자",
+        },
+    )
+    def get(self, request):
+        users = User.objects.all().order_by("email")  # 모든 사용자 조회
+        serializer = UserSerializer(users, many=True)
+        logger.info(f"User list retrieved by admin: {request.user.email}")
+        return success_response(message="사용자 목록 조회에 성공했습니다.", data=serializer.data)
+
+
+class UserProfileView(APIView):
+    """사용자 프로필 API.
+
+    현재 로그인한 사용자의 프로필을 조회하고 수정할 수 있는 API입니다.
+    """
+
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
+
+    @swagger_auto_schema(
+        tags=["유저"],
+        operation_summary="프로필 조회",
+        operation_description="현재 로그인한 사용자의 프로필을 조회합니다.",
+        responses={
+            200: UserSerializer,
+            401: "인증되지 않은 사용자",
+        },
+    )
+    def get(self, request):
+        serializer = UserSerializer(request.user)
+        logger.info(f"Profile retrieved for user: {request.user.email}")
+        return success_response(message=PROFILE_RETRIEVE_RESPONSE["message"], data=serializer.data)
+
+    @swagger_auto_schema(
+        tags=["유저"],
+        operation_summary="프로필 수정",
+        operation_description="현재 로그인한 사용자의 프로필을 수정합니다.",
+        request_body=ProfileUpdateSerializer,
+        responses={
+            200: UserSerializer,
+            400: "잘못된 요청",
+            401: "인증되지 않은 사용자",
+        },
+    )
+    def put(self, request):
+        serializer = ProfileUpdateSerializer(request.user, data=request.data, partial=True)
+        try:
+            serializer.is_valid(raise_exception=True)
+            serializer.save()
+            logger.info(f"Profile updated successfully for user: {request.user.email}")
+            return success_response(message=PROFILE_UPDATE_RESPONSE["message"], data=serializer.data)
+        except ValidationError as e:
+            logger.warning(f"Profile update failed for user {request.user.email} due to validation error: {e.detail}")
+            return error_response(
+                message=INVALID_PROFILE_UPDATE["message"],
+                data=e.detail,
+                code=status.HTTP_400_BAD_REQUEST,
+            )
+        except Exception as e:
+            logger.error(
+                f"Unexpected error during profile update for user {request.user.email}: {e}",
+                exc_info=True,
+            )
+            raise ServerError()
