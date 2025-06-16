@@ -4,7 +4,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     initial = True
 
     dependencies = []
@@ -33,9 +32,7 @@ class Migration(migrations.Migration):
                 ),
                 (
                     "email",
-                    models.EmailField(
-                        max_length=50, unique=True, verbose_name="이메일"
-                    ),
+                    models.EmailField(max_length=50, unique=True, verbose_name="이메일"),
                 ),
                 ("name", models.CharField(max_length=25, verbose_name="이름")),
                 (

@@ -6,7 +6,7 @@ authors = [
     {name = "hyazzang",email = "pd.hyazzang@gmail.com"}
 ]
 readme = "README.md"
-requires-python = ">=3.13"
+requires-python = ">=3.11,<3.13"
 dependencies = [
     "django (>=5.2,<6.0)",
     "djangorestframework (>=3.16.0,<4.0.0)",
@@ -20,11 +20,10 @@ dependencies = [
     "django-cors-headers (>=4.7.0,<5.0.0)",
     "drf-yasg (>=1.21.10,<2.0.0)",
     "pillow (>=11.2.1,<12.0.0)",
-    "django-filter (>=25.1,<26.0)",
     "requests (>=2.32.3,<3.0.0)",
     "cloudinary (>=1.44.0,<2.0.0)",
     "django-cloudinary-storage (==0.3.0)",
-    "charset-normalizer (==3.4.2)",
+    "charset-normalizer (>=3.4.2,<4.0.0)",
 ]
 
 [tool.poetry]
@@ -63,3 +62,43 @@ python_files = ["test_*.py", "*_test.py", "tests.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
 addopts = "--cov=apps --cov-report=term-missing"
+
+[tool.ruff]
+line-length = 120
+target-version = "py310" # 또는 사용 중인 Python 버전 (예: "py38", "py39")
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle 에러
+    "W",   # pycodestyle 경고
+    "F",   # Pyflakes
+    "I",   # isort (임포트 정렬)
+    "N",   # pep8-naming (명명 규칙)
+    "D",   # pydocstyle (Docstring) - 선택 사항
+    "UP",  # pyupgrade
+    "C",   # complexity
+    "RUF", # Ruff-specific rules
+]
+ignore = [
+    "D100", # Missing docstring in public module
+    "D101", # Missing docstring in public class
+    "D102", # Missing docstring in public method
+    "D103", # Missing docstring in public function
+    "D104", # Missing docstring in public package
+    "D105", # Missing docstring in magic method
+    "D106", # Missing docstring in public nested class
+    "D107", # Missing docstring in __init__
+    "D401", # Imperative mood
+    "RUF012", # Mutable class attributes ClassVar
+    "F841", # Assigned but unused
+    "E501", # Line too long
+    "D205", # 1 blank line required between summary line and description
+    "C901", # `update` is too complex (12 > 10)
+    "F811", # Redefinition of unused
+]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
+line-ending = "auto"

@@ -1,3 +1,1 @@
-"""
-Apps package initialization
-"""
+"""Apps package initialization."""

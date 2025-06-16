@@ -1,6 +1,7 @@
 from django.contrib.auth.base_user import AbstractBaseUser, BaseUserManager
 from django.contrib.contenttypes.fields import GenericRelation
 from django.db import models
+from django.utils.translation import gettext_lazy as _
 
 from apps.image.models import Image
 from utils.models import TimestampModel
@@ -28,7 +29,7 @@ class UserManager(BaseUserManager):
     def make_random_password(
         self,
         length=10,
-        allowed_chars="abcdefghjkmnpqrstuvwxyz" "ABCDEFGHJKLMNPQRSTUVWXYZ" "23456789",
+        allowed_chars="abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789",
     ):
         from django.utils.crypto import get_random_string
 
@@ -44,23 +45,47 @@ class UserManager(BaseUserManager):
 
 
 class User(AbstractBaseUser, TimestampModel):  # 기본 기능은 상속받아서 사용
-    email = models.EmailField(
-        verbose_name="이메일", max_length=50, unique=True
-    )  # 로그인시 유저아이디 대신 사용
+    class UserType(models.TextChoices):
+        ADMIN = "ADMIN", _("관리자")
+        NORMAL = "NORMAL", _("일반회원")
+        BLACKLIST = "BLACKLIST", _("블랙리스트")
+
+    class UserGrade(models.TextChoices):
+        BRONZE = "BRONZE", _("브론즈")
+        SILVER = "SILVER", _("실버")
+        GOLD = "GOLD", _("골드")
+        PLATINUM = "PLATINUM", _("플래티넘")
+
+    email = models.EmailField(_("이메일"), unique=True)
+    phone = models.CharField(_("휴대폰"), max_length=20, blank=True)
+    profile_image = models.ImageField(_("프로필 이미지"), upload_to="profiles/", null=True, blank=True)
+    user_type = models.CharField(_("회원 유형"), max_length=20, choices=UserType.choices, default=UserType.NORMAL)
+    user_grade = models.CharField(
+        _("회원 등급"),
+        max_length=20,
+        choices=UserGrade.choices,
+        default=UserGrade.BRONZE,
+    )
+    is_email_verified = models.BooleanField(_("이메일 인증 여부"), default=False)
+    email_verification_token = models.CharField(_("이메일 인증 토큰"), max_length=100, blank=True)
+    social_id = models.CharField(_("소셜 ID"), max_length=100, blank=True)
+    social_type = models.CharField(_("소셜 타입"), max_length=20, blank=True)
+    created_at = models.DateTimeField(_("생성일"), auto_now_add=True)
+    updated_at = models.DateTimeField(_("수정일"), auto_now=True)
     name = models.CharField(verbose_name="이름", max_length=25)
     nickname = models.CharField("닉네임", max_length=25, unique=True)
     # profile_images는 실제 필드로 DB에 만들어지지 않음 → 대신 역참조용 헬퍼 역할 (GenericRelation)
     profile_images = GenericRelation(Image, related_query_name="profile_image")
     last_login = models.DateTimeField(verbose_name="마지막 로그인", null=True)
-    is_staff = models.BooleanField(
-        verbose_name="스태프 권한", default=False
-    )  # is_staff 기능
-    is_superuser = models.BooleanField(
-        verbose_name="관리자 권한", default=False
-    )  # is_superuser(관리자) 기능
+    is_staff = models.BooleanField(verbose_name="스태프 권한", default=False)  # is_staff 기능
+    is_superuser = models.BooleanField(verbose_name="관리자 권한", default=False)  # is_superuser(관리자) 기능
     is_active = models.BooleanField(
         verbose_name="계정 활성화", default=False
     )  # 기본적으로 비활성화 시켜놓고 확인 절차를 거친 후 활성화
+    failed_login_attempts = models.PositiveIntegerField(verbose_name="실패한 로그인 시도 횟수", default=0)
+    last_failed_login_attempt = models.DateTimeField(
+        verbose_name="마지막 실패한 로그인 시도 시간", null=True, blank=True
+    )
 
     # 사용자 지정 메니져
     # User.objects.all()   <- objects가 메니져

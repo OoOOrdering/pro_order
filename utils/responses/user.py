@@ -172,6 +172,17 @@ NOT_AUTHENTICATED = {
     "data": None,
 }
 
+SERVER_ERROR = {
+    "code": 500,
+    "message": "서버 내부 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.",
+    "data": None,
+}
+
+EMAIL_SEND_FAILED = {
+    "code": 500,
+    "message": "이메일 전송에 실패했습니다. 관리자에게 문의해주세요.",
+    "data": None,
+}
 
 # ValidationError	유효성 검증 실패	400
 # NotAuthenticated	인증 안 됨	401

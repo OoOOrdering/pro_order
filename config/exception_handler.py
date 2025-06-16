@@ -23,9 +23,7 @@ def _format_response(code, message, data=None):
 def custom_exception_handler(exc, context):
     # 🔥 콘솔에 예외 전체 Traceback 출력
     logger.exception("예외 발생:", exc_info=exc)  # 로그 기록
-    traceback.print_exception(
-        type(exc), exc, exc.__traceback__, file=sys.stderr
-    )  # 터미널 직접 출력
+    traceback.print_exception(type(exc), exc, exc.__traceback__, file=sys.stderr)  # 터미널 직접 출력
 
     # DRF 기본 핸들러 호출
     response = exception_handler(exc, context)
@@ -72,7 +70,7 @@ def custom_exception_handler(exc, context):
             return _format_response(400, "데이터베이스 무결성 오류", str(exc))
 
         # 5. 인증 오류 등 (NotAuthenticated, PermissionDenied)
-        if isinstance(exc, (NotAuthenticated, PermissionDenied)):
+        if isinstance(exc, NotAuthenticated | PermissionDenied):
             return _format_response(403, "권한이 없습니다.", str(exc))
 
         # 6. 기타 예상 못한 예외

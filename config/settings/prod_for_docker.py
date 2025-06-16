@@ -30,7 +30,7 @@ DATABASES = {
         "HOST": os.getenv("POSTGRES_HOST", "db"),
         "USER": os.getenv("POSTGRES_USER", "postgres"),
         "PASSWORD": os.getenv("POSTGRES_PASSWORD", "postgres"),
-        "NAME": os.getenv("POSTGRES_DB", "oz_collabo"),
+        "NAME": os.getenv("POSTGRES_DB", "prorder_db"),
         "PORT": os.getenv("POSTGRES_PORT", 5432),
     }
 }
@@ -40,10 +40,11 @@ DATABASES = {
 # from django.core.mail.backends.smtp import EmailBackend
 EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
 EMAIL_HOST = "smtp.naver.com"  # 네이버 환결설정에서 볼 수 있음.
-EMAIL_USE_TLS = True  # 보안연결
-EMAIL_PORT = 587  # 네이버 메일 환경설정에서 확인 가능
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
 EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER", "")
 EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD", "")
+DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 
 
 # OAuth
