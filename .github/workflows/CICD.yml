@@ -65,11 +65,16 @@ jobs:
         run: |
           poetry lock
           poetry install --no-interaction --no-root
+          poetry run pre-commit install
 
-      - name: Run code format check (black & isort)
-        run: |
-          poetry run isort --check-only .
-          poetry run black --check .
+          - name: Run pre-commit hooks
+          run: |
+            poetry run pre-commit run --all-files
+
+#      - name: Run code format check (black & isort)
+#        run: |
+#          poetry run isort .
+#          poetry run black .
 
       - name: Run static type checks (mypy)
         run: poetry run mypy . --config-file pyproject.toml
