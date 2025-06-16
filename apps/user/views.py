@@ -25,7 +25,6 @@ from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework_simplejwt.serializers import (
     TokenRefreshSerializer,
 )
-from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView
 
 from apps.user.models import User
@@ -41,7 +40,7 @@ from apps.user.serializers import (
     UserBulkApproveSerializer,
 )
 from apps.user.throttles import LoginAttemptThrottle
-from utils.cache_helpers import invalidate_all_user_caches, invalidate_user_cache
+from utils.cache_helpers import invalidate_user_cache
 from utils.csrf import generate_csrf_token, validate_csrf_token
 from utils.email import send_email
 from utils.responses.common import error_response, success_response
@@ -629,241 +628,7 @@ class TokenInfoAPIView(APIView):
         return success_response(data=serializer.data, message="토큰 정보 확인 성공")
 
 
-# 유저 수정 (본인 프로필)
-class ProfileView(RetrieveUpdateDestroyAPIView):
-    queryset = User.objects.all()
-    serializer_class = ProfileSerializer
-    permission_classes = [IsAuthenticated]  # 인증된 사용자만 데이터 접근 가능
-    authentication_classes = [JWTAuthentication]  # JWT 인증
-
-    http_method_names = ["get", "patch", "delete"]  # ← PUT 제외
-
-    def get_object(self):
-        # DRF 기본 동작
-        # URL 통해 넘겨 받은 pk를 통해 queryset에 데이터를 조회
-        # -> User.objects.all()
-        return self.request.user  # 인증이 끝난 유저가 들어감.
-
-    def get_serializer_class(self):
-        # HTTP 메소드 별로 다른 Serializer 적용
-        # -> 각 요청마다 입/출력에 사용되는 데이터의 형식이 다르기 때문
-
-        if self.request.method == "GET":
-            return ProfileSerializer
-
-        elif self.request.method == "PATCH":
-            return ProfileUpdateSerializer
-
-        return super().get_serializer_class()
-
-    @swagger_auto_schema(
-        tags=["유저/프로필"],
-        operation_summary="내 프로필 조회",
-        request_body=None,
-        # manual_parameters=[
-        #     openapi.Parameter(
-        #         name="Authorization",
-        #         in_=openapi.IN_HEADER,
-        #         type=openapi.TYPE_STRING,
-        #         description="Bearer 액세스 토큰 (예: Bearer eyJs1j2jx...)",
-        #         required=True,
-        #         example="Bearer <access_token>",
-        #     ),
-        # ],
-        responses={
-            200: ProfileSerializer,
-            401: openapi.Response(
-                description="JWT 인증 실패",
-                schema=openapi.Schema(
-                    type=openapi.TYPE_OBJECT,
-                    properties={
-                        "code": openapi.Schema(type=openapi.TYPE_INTEGER, example=401),
-                        "message": openapi.Schema(type=openapi.TYPE_STRING, example="인증 정보가 없습니다."),
-                        "data": None,
-                    },
-                ),
-            ),
-        },
-    )
-    def get(self, request, *args, **kwargs):
-        return self.retrieve(request, *args, **kwargs)
-
-    def retrieve(self, request, *args, **kwargs):
-        instance = self.get_object()
-        serializer = self.get_serializer(instance)
-        response = PROFILE_RETRIEVE_RESPONSE
-        response["data"] = serializer.data
-        return Response(response, status=status.HTTP_200_OK)
-
-    @swagger_auto_schema(
-        tags=["유저/프로필"],
-        operation_summary="내 프로필 수정",
-        request_body=ProfileUpdateSerializer,
-        # manual_parameters=[
-        #     openapi.Parameter(
-        #         name="Authorization",
-        #         in_=openapi.IN_HEADER,
-        #         type=openapi.TYPE_STRING,
-        #         description="Bearer 액세스 토큰 (예: Bearer eyJs1j2jx...)",
-        #         required=True,
-        #         example="Bearer <access_token>",
-        #     ),
-        # ],
-        responses={
-            200: openapi.Response(
-                description="프로필 수정 성공",
-                schema=openapi.Schema(
-                    type=openapi.TYPE_OBJECT,
-                    properties={
-                        "code": openapi.Schema(type=openapi.TYPE_INTEGER, example=200),
-                        "message": openapi.Schema(
-                            type=openapi.TYPE_STRING,
-                            example="회원정보가 수정되었습니다.",
-                        ),
-                        "data": openapi.Schema(
-                            type=openapi.TYPE_OBJECT,
-                            properties={
-                                "nickname": openapi.Schema(type=openapi.TYPE_STRING, example="taejin"),
-                                "profile_image": openapi.Schema(type=openapi.TYPE_STRING, example="https://..."),
-                                "comment_alarm": openapi.Schema(type=openapi.TYPE_BOOLEAN, example=True),
-                                "like_alarm": openapi.Schema(type=openapi.TYPE_BOOLEAN, example=False),
-                                "schedule_alarm": openapi.Schema(type=openapi.TYPE_BOOLEAN, example=True),
-                            },
-                        ),
-                    },
-                ),
-            ),
-            400: openapi.Response(
-                description="유효하지 않은 입력",
-                schema=openapi.Schema(
-                    type=openapi.TYPE_OBJECT,
-                    properties={
-                        "code": openapi.Schema(type=openapi.TYPE_INTEGER, example=400),
-                        "message": openapi.Schema(
-                            type=openapi.TYPE_STRING,
-                            example="닉네임은 필수 항목입니다.",
-                        ),
-                        "data": None,
-                    },
-                ),
-            ),
-        },
-    )
-    def patch(self, request, *args, **kwargs):
-        return self.update(request, *args, **kwargs)
-
-    def update(self, request, *args, **kwargs):
-        partial = kwargs.pop("partial", False)
-        instance = self.get_object()
-        serializer = self.get_serializer(instance, data=request.data, partial=partial)
-        serializer.is_valid(raise_exception=True)
-        self.perform_update(serializer)
-
-        if getattr(instance, "_prefetched_objects_cache", None):
-            # If 'prefetch_related' has been applied to a queryset, we need to
-            # forcibly invalidate the prefetch cache on the instance. For example,
-            # if a 'ManyToManyRel' object was prefetched, some of its items
-            # might have been deleted or added. If that list was cached,
-            # the item would still be around, or missing as appropriate.
-            instance._prefetched_objects_cache = {}
-
-        response = PROFILE_UPDATE_RESPONSE
-        response["data"] = serializer.data
-        return Response(response, status=status.HTTP_200_OK)
-
-    @swagger_auto_schema(
-        tags=["유저/프로필"],
-        operation_summary="회원 탈퇴",
-        request_body=None,
-        # manual_parameters=[
-        #     openapi.Parameter(
-        #         name="Authorization",
-        #         in_=openapi.IN_HEADER,
-        #         type=openapi.TYPE_STRING,
-        #         description="Bearer 액세스 토큰 (예: Bearer eyJs1j2jx...)",
-        #         required=True,
-        #         example="Bearer <access_token>",
-        #     ),
-        # ],
-        responses={
-            200: openapi.Response(
-                description="회원 탈퇴 성공",
-                schema=openapi.Schema(
-                    type=openapi.TYPE_OBJECT,
-                    properties={
-                        "code": openapi.Schema(type=openapi.TYPE_INTEGER, example=200),
-                        "message": openapi.Schema(
-                            type=openapi.TYPE_STRING,
-                            example="회원 탈퇴가 완료되었습니다.",
-                        ),
-                        "data": None,
-                    },
-                ),
-            ),
-            401: openapi.Response(
-                description="JWT 인증 실패",
-                schema=openapi.Schema(
-                    type=openapi.TYPE_OBJECT,
-                    properties={
-                        "code": openapi.Schema(type=openapi.TYPE_INTEGER, example=401),
-                        "message": openapi.Schema(type=openapi.TYPE_STRING, example="인증 정보가 없습니다."),
-                        "data": None,
-                    },
-                ),
-            ),
-        },
-    )
-    def delete(self, request, *args, **kwargs):
-        return self.destroy(request, *args, **kwargs)
-
-    def perform_update(self, serializer):
-        # old_profile_image = self.get_object().profile_image # 이제 시리얼라이저에서 처리
-        instance = serializer.save()
-        invalidate_user_cache(instance.id)  # 특정 사용자 프로필 캐시 무효화
-        invalidate_all_user_caches()  # 리스트 캐시 무효화
-
-        # 새 이미지가 있고 기존 이미지가 다를 경우 이전 이미지 삭제 (시리얼라이저에서 처리되므로 여기서는 제거)
-        # if old_profile_image and self.get_object().profile_image != old_profile_image:
-        #     try:
-        #         from apps.image.utils import delete_from_cloudinary
-        #         public_id = old_profile_image.name.split('/')[-1].split('.')[0]
-        #         delete_from_cloudinary(f'profiles/{public_id}')
-        #         logger.info(f"Old profile image {old_profile_image.name} deleted from Cloudinary for user: {self.request.user.email}")
-        #     except Exception as e:
-        #         logger.error(f"Failed to delete old profile image {old_profile_image.name} from Cloudinary for user {self.request.user.email}: {e}", exc_info=True)
-
-    def perform_destroy(self, instance):
-        if self.request.user.is_staff or instance == self.request.user:
-            instance.is_active = False
-            instance.save()
-            invalidate_user_cache(instance.id)  # 특정 사용자 프로필 캐시 무효화
-            invalidate_all_user_caches()  # 리스트 캐시 무효화
-            logger.info(f"User {instance.email} account deactivated by {self.request.user.email}")
-
-            # 프로필 이미지 삭제 (시리얼라이저의 delete() 메서드에서 처리되므로 여기서는 제거)
-            # if instance.profile_image:
-            #     try:
-            #         from apps.image.utils import delete_from_cloudinary
-            #         delete_from_cloudinary(f'profiles/{instance.profile_image.name.split("/")[-1].split(".")[0]}')
-            #         logger.info(f"Profile image {instance.profile_image.name} deleted from Cloudinary for deactivated user: {instance.email}")
-            #     except Exception as e:
-            #         logger.error(f"Failed to delete profile image {instance.profile_image.name} from Cloudinary for deactivated user {instance.email}: {e}", exc_info=True)
-        else:
-            logger.warning(
-                f"Attempt to deactivate user {instance.email} by unauthorized user {self.request.user.email}"
-            )
-            self.permission_denied(self.request)
-
-    def destroy(self, request, *args, **kwargs):
-        instance = self.get_object()
-        self.perform_destroy(instance)
-        return Response(
-            {"message": "계정이 비활성화되었습니다.", "status": "success"},
-            status=status.HTTP_200_OK,
-        )
-
-
-# 사용자 일괄 승인 (관리자 전용)
+# 유저 수전 승인 (관리자 전용)
 class UserBulkApproveView(APIView):
     permission_classes = [permissions.IsAdminUser]
     authentication_classes = [JWTAuthentication]
@@ -904,33 +669,25 @@ class UserBulkApproveView(APIView):
     )
     def post(self, request, *args, **kwargs):
         serializer = UserBulkApproveSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        user_ids = serializer.validated_data["user_ids"]
+        if serializer.is_valid():
+            user_ids = serializer.validated_data["user_ids"]
+            approved_count = 0
 
-        approved_count = 0
-        for user_id in user_ids:
-            try:
-                # is_email_verified가 True이고 is_active가 False인 사용자만 승인
-                user = User.objects.get(id=user_id, is_email_verified=True, is_active=False)
-                user.is_active = True
-                user.save()
-                approved_count += 1
-                logger.info(f"Admin {request.user.email} approved user: {user.email}")
-            except User.DoesNotExist:
-                logger.warning(f"Bulk approve failed: User with ID {user_id} not found or not eligible for approval.")
-                # 특정 유저가 없거나 승인 대상이 아니어도 전체 요청은 성공으로 간주
-                pass
-            except Exception as e:
-                logger.error(f"Error approving user ID {user_id}: {e}", exc_info=True)
-                pass
+            for user_id in user_ids:
+                try:
+                    user = User.objects.get(id=user_id, is_active=False, is_email_verified=True)
+                    user.is_active = True
+                    user.save()
+                    approved_count += 1
+                    logger.info(f"User {user.email} approved by admin {request.user.email}")
+                except User.DoesNotExist:
+                    continue
 
-        return Response(
-            {
-                "message": "선택된 사용자 계정이 성공적으로 활성화되었습니다.",
-                "approved_count": approved_count,
-            },
-            status=status.HTTP_200_OK,
-        )
+            return success_response(
+                data={"approved_count": approved_count},
+                message="선택된 사용자 계정이 성공적으로 활성화되었습니다.",
+            )
+        return error_response(INVALID_INPUT)
 
 
 # 유저 프로필 조회 및 업데이트
@@ -995,17 +752,14 @@ class UserProfileView(RetrieveUpdateDestroyAPIView):
                 schema=ProfileSerializer,
             ),
             400: openapi.Response(
-                description="잘못된 요청",
+                description="유효하지 않은 입력",
                 schema=openapi.Schema(
                     type=openapi.TYPE_OBJECT,
                     properties={
-                        "code": openapi.Schema(
-                            type=openapi.TYPE_INTEGER,
-                            example=INVALID_INPUT["code"],
-                        ),
+                        "code": openapi.Schema(type=openapi.TYPE_INTEGER, example=400),
                         "message": openapi.Schema(
                             type=openapi.TYPE_STRING,
-                            example=INVALID_INPUT["message"],
+                            example="닉네임은 필수 항목입니다.",
                         ),
                         "data": None,
                     },
@@ -1127,53 +881,38 @@ class EmailVerificationView(APIView):
     )
     def post(self, request):
         serializer = EmailVerificationSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        token = serializer.validated_data["code"]
+        if not serializer.is_valid():
+            return error_response(INVALID_INPUT)
 
         try:
-            signer = TimestampSigner()
-            signed_email = signer.unsign(token, max_age=settings.EMAIL_VERIFICATION_TIMEOUT)
-            user = get_object_or_404(User, email=signed_email)
+            code = serializer.validated_data["code"]
+            signed_email = signing.loads(code)
+            email = TimestampSigner().unsign(signed_email, max_age=settings.EMAIL_VERIFICATION_TIMEOUT)
+            user = User.objects.get(email=email)
 
             if user.is_email_verified:
-                return error_response(VERIFY_EMAIL_ALREADY_VERIFIED, status=status.HTTP_200_OK)
+                return error_response(VERIFY_EMAIL_ALREADY_VERIFIED)
 
             user.is_email_verified = True
-            user.is_active = True  # 이메일 인증 시 계정 활성화
             user.save()
+            logger.info(f"Email verified for user: {user.email}")
+            return success_response(message=VERIFY_EMAIL_SUCCESS["message"])
 
-            # 인증 성공 시 자동 로그인을 위한 토큰 발급
-            refresh = RefreshToken.for_user(user)
-
-            return Response(
-                {
-                    "detail": "이메일 인증이 완료되었습니다.",
-                    "tokens": {
-                        "refresh": str(refresh),
-                        "access": str(refresh.access_token),
-                    },
-                },
-                status=status.HTTP_200_OK,
-            )
+        except signing.BadSignature:
+            logger.warning(f"Invalid verification code attempted: {code}")
+            return error_response(INVALID_SIGNATURE)
         except SignatureExpired:
-            return Response(
-                {"detail": "인증 토큰이 만료되었습니다. 새로운 인증 이메일을 요청해주세요."},
-                status=status.HTTP_410_GONE,
-            )
+            logger.warning(f"Expired verification code attempted: {code}")
+            return error_response(SIGNATURE_EXPIRED)
+        except User.DoesNotExist:
+            logger.warning(f"Verification attempted for non-existent user with email: {email}")
+            return error_response(UserNotFoundError())
         except Exception as e:
-            logger.error(f"이메일 인증 실패: {e!s}")
-            return Response(
-                {"detail": "잘못된 인증 토큰입니다."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+            logger.error(f"Unexpected error during email verification: {e}", exc_info=True)
+            return error_response(SERVER_ERROR_RESPONSE)
 
 
 class ResendVerificationEmailView(APIView):
-    """이메일 인증 재전송 API.
-
-    이메일 인증이 완료되지 않은 사용자에게 인증 이메일을 재전송합니다.
-    """
-
     permission_classes = [AllowAny]
 
     @swagger_auto_schema(
@@ -1188,14 +927,15 @@ class ResendVerificationEmailView(APIView):
     )
     def post(self, request):
         serializer = ResendVerificationEmailSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        email = serializer.validated_data["email"]
+        if not serializer.is_valid():
+            return error_response(INVALID_INPUT)
 
         try:
+            email = serializer.validated_data["email"]
             user = User.objects.get(email=email)
+
             if user.is_email_verified:
-                logger.warning(f"Resend verification email failed: Email already verified for user: {user.email}")
-                raise EmailAlreadyVerifiedError()
+                return error_response(VERIFY_EMAIL_ALREADY_VERIFIED)
 
             signer = TimestampSigner()
             signed_email = signer.sign(user.email)
@@ -1207,34 +947,21 @@ class ResendVerificationEmailView(APIView):
             message = f"아래 링크를 클릭해 인증을 완료해주세요.\n\n{verify_url}"
             send_email(subject, message, user.email)
 
-            logger.info(f"Verification email re-sent successfully to user: {user.email}")
-            return Response(
-                {"message": "인증 이메일이 재전송되었습니다."},
-                status=status.HTTP_200_OK,
-            )
+            logger.info(f"Verification email resent to user: {user.email}")
+            return success_response(message="인증 이메일이 재전송되었습니다.")
+
         except User.DoesNotExist:
-            logger.warning(f"Resend verification email failed: User not found for email: {email}")
-            raise UserNotFoundError()
+            logger.warning(f"Resend verification attempted for non-existent user with email: {email}")
+            return error_response(UserNotFoundError())
         except SMTPException as e:
-            logger.error(
-                f"Resend verification email failed due to email sending error for user {email}: {e}",
-                exc_info=True,
-            )
-            raise CustomAPIException(EMAIL_SEND_FAILED)
+            logger.error(f"Failed to send verification email to {email}: {e}", exc_info=True)
+            return error_response(EMAIL_SEND_FAILED)
         except Exception as e:
-            logger.error(
-                f"Unexpected error during resending verification email for user {email}: {e}",
-                exc_info=True,
-            )
-            raise ServerError()
+            logger.error(f"Unexpected error during verification email resend: {e}", exc_info=True)
+            return error_response(SERVER_ERROR_RESPONSE)
 
 
 class UserPasswordChangeAPIView(APIView):
-    """사용자 비밀번호 변경 API.
-
-    현재 로그인한 사용자의 비밀번호를 변경할 수 있는 API입니다.
-    """
-
     permission_classes = [IsAuthenticated]
     serializer_class = PasswordChangeSerializer
 
@@ -1249,10 +976,7 @@ class UserPasswordChangeAPIView(APIView):
                 schema=openapi.Schema(
                     type=openapi.TYPE_OBJECT,
                     properties={
-                        "code": openapi.Schema(
-                            type=openapi.TYPE_INTEGER,
-                            example=PASSWORD_CHANGED["code"],
-                        ),
+                        "code": openapi.Schema(type=openapi.TYPE_INTEGER, example=PASSWORD_CHANGED["code"]),
                         "message": openapi.Schema(
                             type=openapi.TYPE_STRING,
                             example=PASSWORD_CHANGED["message"],
@@ -1266,14 +990,8 @@ class UserPasswordChangeAPIView(APIView):
                 schema=openapi.Schema(
                     type=openapi.TYPE_OBJECT,
                     properties={
-                        "code": openapi.Schema(
-                            type=openapi.TYPE_INTEGER,
-                            example=INVALID_INPUT["code"],
-                        ),
-                        "message": openapi.Schema(
-                            type=openapi.TYPE_STRING,
-                            example=INVALID_INPUT["message"],
-                        ),
+                        "code": openapi.Schema(type=openapi.TYPE_INTEGER, example=INVALID_INPUT["code"]),
+                        "message": openapi.Schema(type=openapi.TYPE_STRING, example=INVALID_INPUT["message"]),
                         "data": None,
                     },
                 ),
@@ -1283,14 +1001,8 @@ class UserPasswordChangeAPIView(APIView):
                 schema=openapi.Schema(
                     type=openapi.TYPE_OBJECT,
                     properties={
-                        "code": openapi.Schema(
-                            type=openapi.TYPE_INTEGER,
-                            example=UNAUTHORIZED["code"],
-                        ),
-                        "message": openapi.Schema(
-                            type=openapi.TYPE_STRING,
-                            example=UNAUTHORIZED["message"],
-                        ),
+                        "code": openapi.Schema(type=openapi.TYPE_INTEGER, example=UNAUTHORIZED["code"]),
+                        "message": openapi.Schema(type=openapi.TYPE_STRING, example=UNAUTHORIZED["message"]),
                         "data": None,
                     },
                 ),
@@ -1298,52 +1010,39 @@ class UserPasswordChangeAPIView(APIView):
         },
     )
     def post(self, request, *args, **kwargs):
-        """사용자의 비밀번호를 변경합니다."""
         serializer = self.serializer_class(data=request.data)
         if not serializer.is_valid():
-            logger.warning(f"Password change failed: {serializer.errors}")
-            raise CustomAPIException(INVALID_INPUT)
+            return error_response(INVALID_INPUT)
 
-        user = request.user
-
-        # Old password validation
-        if not user.check_password(serializer.validated_data["old_password"]):
-            logger.warning(f"Password change failed: Invalid old password for user {user.email}")
-            raise CustomAPIException(INVALID_PASSWORD)
-
-        # New password validation with Django's password validators
         try:
-            validate_password(serializer.validated_data["new_password"], user=user)
-        except ValidationError as e:
-            logger.warning(f"Password change failed: New password validation failed for user {user.email}: {e}")
-            raise CustomAPIException(WEAK_PASSWORD)
+            user = request.user
+            old_password = serializer.validated_data["old_password"]
+            new_password = serializer.validated_data["new_password"]
 
-        user.set_password(serializer.validated_data["new_password"])
-        user.save()
+            if not user.check_password(old_password):
+                return error_response(INVALID_PASSWORD)
 
-        # 모든 기존 세션 무효화
-        user.auth_token_set.all().delete()
+            try:
+                validate_password(new_password, user)
+            except ValidationError as e:
+                return error_response(WEAK_PASSWORD)
 
-        response_data = {
-            "code": PASSWORD_CHANGED["code"],
-            "message": PASSWORD_CHANGED["message"],
-            "data": None,
-        }
-        logger.info(f"Password changed successfully for user: {user.email}")
-        return Response(response_data)
+            user.set_password(new_password)
+            user.save()
+            logger.info(f"Password changed for user: {user.email}")
+            return success_response(message=PASSWORD_CHANGED["message"])
+
+        except Exception as e:
+            logger.error(f"Unexpected error during password change: {e}", exc_info=True)
+            return error_response(SERVER_ERROR_RESPONSE)
 
 
 class PasswordResetView(APIView):
-    """비밀번호 재설정 이메일 요청 API.
-
-    등록된 이메일로 비밀번호 재설정 링크를 전송합니다.
-    """
-
     permission_classes = [AllowAny]
 
     @swagger_auto_schema(
         operation_summary="비밀번호 재설정 이메일 요청",
-        operation_description="등록된 이메일로 비밀번호 재설정 링크를 전송합니다. 사용자에게는 이메일이 성공적으로 전송되었다는 메시지가 표시됩니다.",
+        operation_description="등록된 이메일로 비밀번호 재설정 링크를 전송합니다.",
         request_body=openapi.Schema(
             type=openapi.TYPE_OBJECT,
             properties={"email": openapi.Schema(type=openapi.TYPE_STRING, format="email")},
@@ -1357,45 +1056,35 @@ class PasswordResetView(APIView):
     def post(self, request):
         email = request.data.get("email")
         if not email:
-            logger.warning("Password reset request failed: No email provided")
             return error_response(INVALID_INPUT)
 
         try:
             user = User.objects.get(email=email)
             signer = TimestampSigner()
-            token = signer.sign(str(user.pk))
-            reset_url = f"{request.scheme}://{request.get_host()}/api/users/reset-password/confirm/?token={token}"
+            signed_email = signer.sign(user.email)
+            signed_code = signing.dumps(signed_email)
 
-            subject = "[WiStar] 비밀번호 재설정 링크입니다."
+            reset_url = f"{request.scheme}://{request.get_host()}/api/users/reset-password/confirm?code={signed_code}"
+
+            subject = "[WiStar] 비밀번호 재설정"
             message = f"아래 링크를 클릭해 비밀번호를 재설정해주세요.\n\n{reset_url}"
             send_email(subject, message, user.email)
 
-            logger.info(f"Password reset email sent successfully to user: {user.email}")
+            logger.info(f"Password reset email sent to user: {user.email}")
             return success_response(message="비밀번호 재설정 이메일이 전송되었습니다.")
+
         except User.DoesNotExist:
-            logger.warning(f"Password reset request failed: User not found for email: {email}")
-            # 보안상 사용자가 존재하지 않더라도 성공 응답을 보냄
-            return success_response(message="비밀번호 재설정 이메일이 전송되었습니다.")
+            logger.warning(f"Password reset attempted for non-existent user with email: {email}")
+            return error_response(UserNotFoundError())
         except SMTPException as e:
-            logger.error(
-                f"Password reset email sending failed for user {email}: {e}",
-                exc_info=True,
-            )
+            logger.error(f"Failed to send password reset email to {email}: {e}", exc_info=True)
             return error_response(EMAIL_SEND_FAILED)
         except Exception as e:
-            logger.error(
-                f"Unexpected error during password reset request for user {email}: {e}",
-                exc_info=True,
-            )
+            logger.error(f"Unexpected error during password reset request: {e}", exc_info=True)
             return error_response(SERVER_ERROR_RESPONSE)
 
 
 class PasswordResetConfirmView(APIView):
-    """비밀번호 재설정 확인 API.
-
-    제공된 토큰과 새 비밀번호를 사용하여 비밀번호를 재설정합니다.
-    """
-
     permission_classes = [AllowAny]
 
     @swagger_auto_schema(
@@ -1410,45 +1099,39 @@ class PasswordResetConfirmView(APIView):
     )
     def post(self, request):
         serializer = PasswordResetConfirmSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-
-        token = serializer.validated_data["token"]
-        new_password = serializer.validated_data["new_password"]
+        if not serializer.is_valid():
+            return error_response(INVALID_INPUT)
 
         try:
-            signer = TimestampSigner()
-            user_pk = signer.unsign(token, max_age=settings.PASSWORD_RESET_TIMEOUT)
-            user = User.objects.get(pk=user_pk)
+            code = serializer.validated_data["code"]
+            new_password = serializer.validated_data["new_password"]
 
-            # 새 비밀번호 유효성 검증
+            signed_email = signing.loads(code)
+            email = TimestampSigner().unsign(signed_email, max_age=settings.PASSWORD_RESET_TIMEOUT)
+            user = User.objects.get(email=email)
+
             try:
-                validate_password(new_password, user=user)
+                validate_password(new_password, user)
             except ValidationError as e:
-                logger.warning(
-                    f"Password reset confirmation failed: New password validation failed for user {user.email}: {e}"
-                )
                 return error_response(WEAK_PASSWORD)
 
             user.set_password(new_password)
             user.save()
-
-            # 모든 기존 세션 무효화
-            user.auth_token_set.all().delete()
-
-            logger.info(f"Password reset successfully for user: {user.email}")
+            logger.info(f"Password reset completed for user: {user.email}")
             return success_response(message="비밀번호가 성공적으로 재설정되었습니다.")
-        except SignatureExpired:
-            logger.warning(f"Password reset confirmation failed: Token expired for token {token}")
-            return error_response(SIGNATURE_EXPIRED)
+
         except signing.BadSignature:
-            logger.warning(f"Password reset confirmation failed: Invalid token for token {token}")
+            logger.warning(f"Invalid password reset code attempted: {code}")
             return error_response(INVALID_SIGNATURE)
+        except SignatureExpired:
+            logger.warning(f"Expired password reset code attempted: {code}")
+            return error_response(SIGNATURE_EXPIRED)
         except User.DoesNotExist:
-            logger.warning(f"Password reset confirmation failed: User not found for token {token}")
+            logger.warning(f"Password reset attempted for non-existent user with email: {email}")
             return error_response(UserNotFoundError())
         except Exception as e:
             logger.error(
-                f"Unexpected error during password reset confirmation for token {token}: {e}",
+                f"Unexpected error during password reset confirmation: {e}",
                 exc_info=True,
             )
             return error_response(SERVER_ERROR_RESPONSE)
