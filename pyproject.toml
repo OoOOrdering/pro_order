@@ -79,10 +79,7 @@ warn_unused_ignores = true
 warn_no_return = true
 warn_unreachable = true
 strict_optional = true
-plugins = ["mypy_django_plugin.main", "mypy_drf_plugin.main"]
-
-[tool.django-stubs]
-django_settings_module = "config.settings.settings"
+plugins = ["mypy_django_plugin.main"]
 
 [[tool.mypy.overrides]]
 module = [
