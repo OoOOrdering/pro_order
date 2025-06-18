@@ -114,7 +114,10 @@ jobs:
           virtualenvs-in-project: true
 
       - name: Add poetry to PATH
-        run: echo "$HOME/.local/bin" >> $GITHUB_PATH && export PATH="$PATH:$HOME/.local/bin"
+        run: echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+      - name: Verify Poetry Installation
+        run: poetry --version
 
       - name: Install dependencies
         run: poetry install --no-interaction
