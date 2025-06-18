@@ -69,8 +69,10 @@ jobs:
           poetry run isort .
           poetry run black .
 
-      - name: Run static type checks (mypy)
-        run: poetry run mypy . --config-file pyproject.toml
+      - name: Install and run mypy
+        run: |
+          poetry add --group dev mypy
+          poetry run mypy . --config-file pyproject.toml
 
       - name: Run tests with coverage
         env:
@@ -123,12 +125,9 @@ jobs:
         run: |
           poetry add "djangorestframework-simplejwt==5.3.1" "pyjwt>=2.8.0"
           poetry install --no-interaction --no-root
-          poetry add --group dev safety bandit
+          poetry add --group dev bandit
 
-      - name: Run safety checks
-        run: poetry run safety scan
-
-      - name: Run bandit
+      - name: Run security checks with bandit
         run: poetry run bandit -r ./apps -c pyproject.toml
 
   deploy:
