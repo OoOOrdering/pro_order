@@ -128,7 +128,7 @@ python_functions = ["test_*"]
 addopts = "--cov=apps --cov-report=term-missing --cov-report=html --ds=config.settings.settings"
 filterwarnings = [
     "ignore::DeprecationWarning",
-    "ignore::django.utils.deprecation.RemovedInDjango50Warning",
+    "ignore::django.utils.deprecation.RemovedInDjango60Warning",
 ]
 
 [tool.ruff]
