@@ -260,6 +260,25 @@ CACHES = {
     },
 }
 
+# Redis Cache Settings
+CACHES = {
+    "default": {
+        "BACKEND": "django_redis.cache.RedisCache",
+        "LOCATION": ENV.get("REDIS_URL", "redis://localhost:6379/1"),
+        "OPTIONS": {
+            "CLIENT_CLASS": "django_redis.client.DefaultClient",
+            "IGNORE_EXCEPTIONS": True,
+        },
+    }
+}
+
+# Cache session backend
+SESSION_ENGINE = "django.contrib.sessions.backends.cache"
+SESSION_CACHE_ALIAS = "default"
+
+# Cache timeout settings
+CACHE_TTL = 60 * 15  # 15 minutes
+
 # REST Framework settings
 REST_FRAMEWORK = {
     "DEFAULT_THROTTLE_CLASSES": [
