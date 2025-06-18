@@ -51,11 +51,11 @@ jobs:
       - name: Install dependencies
         if: steps.cached-poetry-dependencies.outputs.cache-hit != 'true'
         run: |
-          poetry lock --no-update
+          poetry lock
           poetry install --no-interaction --no-root
 
       - name: Install project
-        run: poetry install --no-interaction
+        run: poetry install --no-interaction --no-root
 
       - name: Run pre-commit hooks
         run: |
@@ -118,7 +118,7 @@ jobs:
         run: poetry --version
 
       - name: Install dependencies
-        run: poetry install --no-interaction
+        run: poetry install --no-interaction --no-root
 
       - name: Run safety checks
         run: poetry run safety check
@@ -150,7 +150,7 @@ jobs:
         run: echo "$HOME/.local/bin" >> $GITHUB_PATH
 
       - name: Install dependencies
-        run: poetry install --no-interaction
+        run: poetry install --no-interaction --no-root
 
       - name: Deploy to production
         uses: appleboy/ssh-action@master
