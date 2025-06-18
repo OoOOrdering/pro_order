@@ -103,9 +103,6 @@ disallow_incomplete_defs = false
 check_untyped_defs = false
 disallow_untyped_decorators = false
 
-[tool.mypy_django_plugin]
-django_settings_module = "config.settings.settings"
-
 [tool.django-stubs]
 django_settings_module = "config.settings.settings"
 strict_settings = true
