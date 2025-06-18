@@ -116,11 +116,6 @@ jobs:
       - name: Add poetry to PATH
         run: echo "$HOME/.local/bin" >> $GITHUB_PATH && export PATH="$PATH:$HOME/.local/bin"
 
-      - name: Verify poetry installation
-        run: |
-          which poetry
-          poetry --version
-
       - name: Install dependencies
         run: poetry install --no-interaction
 
