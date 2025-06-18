@@ -125,7 +125,7 @@ DJANGO_SETTINGS_MODULE = "config.settings.settings"
 python_files = ["test_*.py", "*_test.py", "tests.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
-addopts = "--cov=apps --cov-report=term-missing --cov-report=html"
+addopts = "--cov=apps --cov-report=term-missing --cov-report=html --ds=config.settings.settings"
 filterwarnings = [
     "ignore::DeprecationWarning",
     "ignore::django.utils.deprecation.RemovedInDjango50Warning",
