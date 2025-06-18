@@ -3,10 +3,10 @@ name = "pr_order"
 version = "0.1.0"
 description = "Personal Order Management Project"
 authors = [
-    {name = "hyazzang", email = "pd.hyazzang@gmail.com"}
+    { name = "hyazzang", email = "pd.hyazzang@gmail.com" }
 ]
 readme = "README.md"
-requires-python = ">=3.12"
+requires-python = ">=3.12,<4.0"
 dependencies = [
     "django>=5.2,<6.0",
     "djangorestframework>=3.16.0,<4.0.0",
@@ -24,55 +24,28 @@ dependencies = [
     "cloudinary>=1.44.0,<2.0.0",
     "django-cloudinary-storage==0.3.0",
     "charset-normalizer>=3.4.2,<4.0.0",
-    "reportlab>=4.4.1,<5.0.0",
-    "django-redis (>=6.0.0,<7.0.0)",
+    "reportlab>=4.4.1,<5.0.0; python_version >= '3.12' and python_version < '4.0'",
+    "django-redis>=6.0.0,<7.0.0"
 ]
 
-[tool.poetry]
-name = "pr_order"
-version = "0.1.0"
-description = "Personal Order Management Project"
-authors = ["hyazzang <pd.hyazzang@gmail.com>"]
-readme = "README.md"
-packages = []
-package-mode = false
-
-[tool.poetry.dependencies]
-python = "^3.12"
-django = ">=5.2,<6.0"
-djangorestframework = ">=3.16.0,<4.0.0"
-djangorestframework-simplejwt = ">=5.5.0,<6.0.0"
-certifi = ">=2025.1.31,<2026.0.0"
-django-storages = ">=1.14.6,<2.0.0"
-boto3 = ">=1.37.38,<2.0.0"
-python-dotenv = ">=1.1.0,<2.0.0"
-psycopg2-binary = ">=2.9.10,<3.0.0"
-django-filter = ">=25.1,<26.0"
-django-cors-headers = ">=4.7.0,<5.0.0"
-drf-yasg = ">=1.21.10,<2.0.0"
-pillow = ">=11.2.1,<12.0.0"
-requests = ">=2.32.3,<3.0.0"
-cloudinary = ">=1.44.0,<2.0.0"
-django-cloudinary-storage = "0.3.0"
-charset-normalizer = ">=3.4.2,<4.0.0"
-reportlab = ">=4.4.1,<5.0.0"
-
-[tool.poetry.group.dev.dependencies]
-black = "^25.1.0"
-mypy = "^1.15.0"
-pytest = "^8.3.5"
-pytest-cov = "^6.1.1"
-pytest-django = "^4.11.1"
-isort = "^5.10.1"
-ruff = "^0.11.7"
-pre-commit = "^3.7.0"
-django-debug-toolbar = "^4.3.0"
-factory-boy = "^3.3.0"
-faker = "^24.1.0"
-coverage = "^7.4.4"
-safety = "^2.3.5"
-bandit = "^1.7.9"
-types-reportlab = "^4.4.1.20250602"
+[project.optional-dependencies]
+dev = [
+    "black>=25.1.0",
+    "mypy>=1.15.0",
+    "pytest>=8.3.5",
+    "pytest-cov>=6.1.1",
+    "pytest-django>=4.11.1",
+    "isort>=5.10.1",
+    "ruff>=0.11.7",
+    "pre-commit>=3.7.0",
+    "django-debug-toolbar>=4.3.0",
+    "factory-boy>=3.3.0",
+    "faker>=24.1.0",
+    "coverage>=7.4.4",
+    "safety>=2.3.5",
+    "bandit>=1.7.9",
+    "types-reportlab>=4.4.1.20250602"
+]
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
@@ -115,31 +88,24 @@ module = [
     "django_filters.*",
     "reportlab.*",
     "pytest.*",
-    "locust.*"
+    "locust.*",
+    "django.*",
+    "rest_framework.*",
+    "apps.*.tests.*",
+    "apps.*.models.*"
 ]
 ignore_missing_imports = true
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+check_untyped_defs = false
+disallow_untyped_decorators = false
 
 [tool.mypy_django_plugin]
-django_settings_module = "config.settings.local"
+django_settings_module = "config.settings.settings"
 
 [tool.django-stubs]
 django_settings_module = "config.settings.settings"
 strict_settings = true
-
-[[tool.mypy.overrides]]
-module = ["django.*", "rest_framework.*", "apps.*.tests.*"]
-ignore_missing_imports = true
-disallow_untyped_defs = false
-disallow_incomplete_defs = false
-check_untyped_defs = false
-disallow_untyped_decorators = false
-
-[[tool.mypy.overrides]]
-module = ["apps.*.models.*"]
-disallow_untyped_defs = false
-disallow_incomplete_defs = false
-check_untyped_defs = false
-disallow_untyped_decorators = false
 
 [tool.pytest.ini_options]
 testpaths = ["apps"]
@@ -158,13 +124,8 @@ line-length = 120
 target-version = "py312"
 
 [tool.ruff.lint]
-select = [
-    "E",   # pycodestyle 에러
-    "F",   # Pyflakes
-]
-ignore = [
-    "E501", # Line too long
-]
+select = ["E", "F"]
+ignore = ["E501"]
 
 [tool.ruff.format]
 quote-style = "double"
@@ -173,14 +134,14 @@ skip-magic-trailing-comma = false
 line-ending = "auto"
 
 [tool.bandit]
-exclude_dirs = ["tests/"] # tests/ 디렉토리 전체를 스캔에서 제외합니다.
+exclude_dirs = ["tests/"]
 skips = [
-    "B101", # assert_used
-    "B105", # Possible hardcoded password string
-    "B106", # Possible hardcoded password
-    "B107", # Possible hardcoded password
-    "B311", # Standard pseudo-random generators
-    "B404", # Consider possible security implications associated with the subprocess module.
-    "B603", # subprocess call - check for execution of untrusted input.
-    "B607", # Starting a process with a partial executable path
+    "B101",
+    "B105",
+    "B106",
+    "B107",
+    "B311",
+    "B404",
+    "B603",
+    "B607",
 ]
