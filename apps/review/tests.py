@@ -210,7 +210,7 @@ class TestReviewAPI(APITestCase):
         assert response.data["id"] == review.pk
         assert response.data["comment"] == review.comment
 
-    def test_update_review(self, api_client, authenticate_client, create_review, create_order):
+    def test_update_review_with_fixtures(self, api_client, authenticate_client, create_review, create_order):
         user = authenticate_client()
         order = create_order(user=user)
         review = create_review(order=order, reviewer=user)
@@ -222,7 +222,7 @@ class TestReviewAPI(APITestCase):
         assert review.comment == "Updated comment"
         assert review.rating == 4
 
-    def test_delete_review(self, api_client, authenticate_client, create_review, create_order):
+    def test_delete_review_with_fixtures(self, api_client, authenticate_client, create_review, create_order):
         user = authenticate_client()
         order = create_order(user=user)
         review = create_review(order=order, reviewer=user)
