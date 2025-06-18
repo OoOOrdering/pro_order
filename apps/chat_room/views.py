@@ -106,7 +106,7 @@ class ChatRoomParticipantRemoveView(APIView):
             if serializer.is_valid():
                 user_ids = serializer.validated_data["user_ids"]
                 ChatRoomParticipant.objects.filter(chat_room=chat_room, user_id__in=user_ids).update(
-                    left_at=timezone.now()
+                    left_at=timezone.now(),
                 )
                 return Response({"message": "참여자가 제거되었습니다."})
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

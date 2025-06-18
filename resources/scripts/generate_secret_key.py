@@ -6,7 +6,8 @@ logger = logging.getLogger(__name__)
 
 
 def generate_django_secret_key(length=50):
-    """Django SECRET_KEY 생성.
+    """
+    Django SECRET_KEY 생성.
 
     Args:
     ----

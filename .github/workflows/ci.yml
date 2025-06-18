@@ -1,0 +1,134 @@
+name: CI/CD
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: test_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "poetry"
+
+      - name: Install Poetry
+        uses: snok/install-poetry@v1
+        with:
+          version: 1.8.0
+          virtualenvs-create: true
+          virtualenvs-in-project: true
+
+      - name: Load cached venv
+        id: cached-poetry-dependencies
+        uses: actions/cache@v3
+        with:
+          path: .venv
+          key: venv-${{ runner.os }}-${{ hashFiles('**/poetry.lock') }}
+
+      - name: Install dependencies
+        if: steps.cached-poetry-dependencies.outputs.cache-hit != 'true'
+        run: poetry install --no-interaction --no-root
+
+      - name: Install project
+        run: poetry install --no-interaction
+
+      - name: Run pre-commit hooks
+        run: |
+          poetry run pre-commit install
+          poetry run pre-commit run --all-files
+
+      - name: Run tests
+        env:
+          DATABASE_URL: postgres://postgres:postgres@localhost:5432/test_db
+          DJANGO_SETTINGS_MODULE: config.settings.settings
+          SECRET_KEY: test-key
+          DEBUG: "True"
+          ALLOWED_HOSTS: localhost,127.0.0.1
+          CORS_ALLOWED_ORIGINS: http://localhost:3000,http://127.0.0.1:3000
+        run: |
+          poetry run pytest --cov=apps --cov-report=xml
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          file: ./coverage.xml
+          fail_ci_if_error: true
+
+  security:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "poetry"
+
+      - name: Install Poetry
+        uses: snok/install-poetry@v1
+        with:
+          version: 1.8.0
+          virtualenvs-create: true
+          virtualenvs-in-project: true
+
+      - name: Install dependencies
+        run: poetry install --no-interaction
+
+      - name: Run safety checks
+        run: poetry run safety check
+
+      - name: Run bandit
+        run: poetry run bandit -r ./apps -c pyproject.toml
+
+  deploy:
+    needs: [test, security]
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "poetry"
+
+      - name: Install Poetry
+        uses: snok/install-poetry@v1
+        with:
+          version: 1.8.0
+          virtualenvs-create: true
+          virtualenvs-in-project: true
+
+      - name: Install dependencies
+        run: poetry install --no-interaction
+
+      - name: Deploy to production
+        env:
+          DEPLOY_KEY: ${{ secrets.DEPLOY_KEY }}
+        run: |
+          # 여기에 실제 배포 스크립트를 추가하세요
+          echo "Deploying to production..."

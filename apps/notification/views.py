@@ -8,7 +8,8 @@ from .serializers import NotificationSerializer
 
 
 class NotificationListCreateView(generics.ListCreateAPIView):
-    """알림 목록 조회 및 생성을 처리하는 뷰입니다.
+    """
+    알림 목록 조회 및 생성을 처리하는 뷰입니다.
 
     관리자는 모든 알림을 조회할 수 있으며, 일반 사용자는 본인에게 생성된 알림만 조회할 수 있습니다.
     알림 생성은 관리자만 가능합니다.
@@ -41,7 +42,8 @@ class NotificationListCreateView(generics.ListCreateAPIView):
 
 
 class NotificationDetailView(generics.RetrieveUpdateDestroyAPIView):
-    """개별 알림의 조회, 수정, 삭제를 처리하는 뷰입니다.
+    """
+    개별 알림의 조회, 수정, 삭제를 처리하는 뷰입니다.
 
     관리자는 모든 알림을 조회/수정/삭제할 수 있으며, 일반 사용자는 본인에게 생성된 알림만 조회/수정/삭제할 수 있습니다.
     """
@@ -70,7 +72,8 @@ class NotificationDetailView(generics.RetrieveUpdateDestroyAPIView):
 
 
 class UnreadNotificationListView(generics.ListAPIView):
-    """읽지 않은 알림 목록을 조회하는 뷰입니다.
+    """
+    읽지 않은 알림 목록을 조회하는 뷰입니다.
 
     사용자별로 읽지 않은 알림을 생성일시 기준 내림차순으로 정렬하여 반환합니다.
     """
@@ -84,7 +87,8 @@ class UnreadNotificationListView(generics.ListAPIView):
 
 
 class MarkNotificationAsReadView(APIView):
-    """알림을 읽음 상태로 표시하는 뷰입니다.
+    """
+    알림을 읽음 상태로 표시하는 뷰입니다.
 
     특정 알림을 읽음 상태로 변경하며, 해당 알림이 존재하지 않거나 권한이 없는 경우 404 에러를 반환합니다.
     """
@@ -105,14 +109,15 @@ class MarkNotificationAsReadView(APIView):
 
 
 class NotificationUnreadCountView(APIView):
-    """읽지 않은 알림의 개수를 조회하는 뷰입니다.
+    """
+    읽지 않은 알림의 개수를 조회하는 뷰입니다.
 
     사용자별로 읽지 않은 알림의 총 개수를 반환합니다.
     """
 
     permission_classes = [permissions.IsAuthenticated]
 
-    def get(self, request, *args, **kwargs):
+    def get(self, request, *args, **kwargs):  # noqa: ARG002
         user = request.user
         unread_count = Notification.objects.filter(user=user, is_read=False).count()
         return Response({"unread_count": unread_count})

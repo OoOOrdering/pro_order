@@ -1,8 +1,6 @@
 from rest_framework import serializers
 
-from apps.user.serializers import (  # 사용자 시리얼라이저가 필요하다고 가정
-    UserSerializer,
-)
+from apps.user.serializers import UserSerializer  # 사용자 시리얼라이저가 필요하다고 가정
 
 from .models import ChatMessage
 

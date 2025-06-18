@@ -18,7 +18,9 @@ def generate_csrf_token():
     expiry_timestamp = int(time.time()) + CSRF_TOKEN_EXPIRY_SECONDS
     data_to_sign = f"{raw_token}.{expiry_timestamp}"
     signature = hmac.new(
-        SECRET_KEY.encode(), data_to_sign.encode(), hashlib.sha256
+        SECRET_KEY.encode(),
+        data_to_sign.encode(),
+        hashlib.sha256,
     ).hexdigest()
     return f"{raw_token}.{expiry_timestamp}.{signature}"
 
@@ -35,7 +37,9 @@ def validate_csrf_token(token):
         raw_token, expiry_timestamp, signature = token.split(".")
         expected_data = f"{raw_token}.{expiry_timestamp}"
         expected_signature = hmac.new(
-            SECRET_KEY.encode(), expected_data.encode(), hashlib.sha256
+            SECRET_KEY.encode(),
+            expected_data.encode(),
+            hashlib.sha256,
         ).hexdigest()
 
         # 서명 검증

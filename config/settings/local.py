@@ -1,4 +1,6 @@
+import os
 import random
+from datetime import timedelta
 
 import cloudinary
 
@@ -14,7 +16,7 @@ DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.sqlite3",
         "NAME": BASE_DIR / "db.sqlite3",
-    }
+    },
 }
 
 # Email settings
@@ -49,24 +51,9 @@ cloudinary.config(
     secure=True,  # https 사용
 )
 
-# 파일 저장 기본 설정을 Cloudinary로 설정 (선택 사항)
-# Django의 ImageField, FileField에서 저장하는 모든 업로드 파일은 MEDIA_ROOT가 아닌 Cloudinary에 저장됩니다.
-# DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
-
-# # 기본 이미지 url 설정
-# BASE_STATIC_URL = STATIC_URL + "images/"
-# # 기본 프로필 이미지 url 설정
-# DEFAULT_PROFILE_URL = BASE_STATIC_URL + "default_profile.webp"
-# DEFAULT_PROFILE_THUMBNAIL_URL = BASE_STATIC_URL + "default_profile_thumb.webp"
-# # 기본 게시글 이미지 url 설정
-# DEFAULT_POST_URL = BASE_STATIC_URL + "default_post.webp"
-# DEFAULT_POST_THUMBNAIL_URL = BASE_STATIC_URL + "default_post_thumb.webp"
-# # 기본 이미지 url 설정
-# DEFAULT_THUMBNAIL_URL = BASE_STATIC_URL + "default_thumb.webp"  # 예외 대비
+DEFAULT_FILE_STORAGE = "cloudinary_storage.storage.MediaCloudinaryStorage"
 
 # Email
-# from django.core.mail.backends.smtp import EmailBackend
-# EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
 EMAIL_HOST = "smtp.naver.com"  # 네이버 환결설정에서 볼 수 있음.
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
@@ -83,3 +70,163 @@ KAKAO_CLIENT_SECRET = ENV.get("KAKAO_CLIENT_SECRET", "")
 
 GOOGLE_CLIENT_ID = ENV.get("GOOGLE_CLIENT_ID", "")
 GOOGLE_CLIENT_SECRET = ENV.get("GOOGLE_CLIENT_SECRET", "")
+
+# Internationalization
+# https://docs.djangoproject.com/en/5.0/topics/i18n/
+
+LANGUAGE_CODE = "ko-kr"
+
+TIME_ZONE = "Asia/Seoul"
+
+USE_I18N = True
+
+USE_TZ = True
+
+
+# Static files (CSS, JavaScript, Images)
+# https://docs.djangoproject.com/en/5.0/howto/static-files/
+
+STATIC_URL = "static/"
+
+# Default primary key field type
+# https://docs.djangoproject.com/en/5.0/ref/settings/#default-auto-field
+
+DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+# JWT 설정
+SIMPLE_JWT = {
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=1),  # access 토큰 만료 1분
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=1),  # refresh 토큰 만료 1일
+    "ROTATE_REFRESH_TOKENS": False,  # refresh 토큰 재발급 여부
+    "BLACKLIST_AFTER_ROTATION": False,  # 재발급 시 이전 refresh 토큰 블랙리스트 등록
+    "UPDATE_LAST_LOGIN": True,  # 로그인 시 last_login 업데이트
+    "ALGORITHM": "HS256",  # 해싱 알고리즘
+    "SIGNING_KEY": SECRET_KEY,  # 비밀키
+    "VERIFYING_KEY": None,
+    "AUDIENCE": None,
+    "ISSUER": None,
+    "JWK_URL": None,
+    "LEEWAY": 0,
+    "AUTH_HEADER_TYPES": ("Bearer",),
+    "AUTH_HEADER_NAME": "HTTP_AUTHORIZATION",
+    "USER_ID_FIELD": "id",
+    "USER_ID_CLAIM": "user_id",
+    "USER_AUTHENTICATION_RULE": "rest_framework_simplejwt.authentication.default_user_authentication_rule",
+    "AUTH_TOKEN_CLASSES": ("rest_framework_simplejwt.tokens.AccessToken",),
+    "TOKEN_TYPE_CLAIM": "token_type",
+    "TOKEN_USER_CLASS": "rest_framework_simplejwt.models.TokenUser",
+    "JTI_CLAIM": "jti",
+    "SLIDING_TOKEN_LIFETIME": timedelta(minutes=5),
+    "SLIDING_TOKEN_REFRESH_LIFETIME": timedelta(days=1),
+}
+
+
+# swagger
+SWAGGER_SETTINGS = {
+    "DEFAULT_INFO": "config.urls.swagger_info.swagger_info",
+    "USE_SESSION_AUTH": True,
+    "JSON_EDITOR": True,
+    "SECURITY_DEFINITIONS": {
+        "Bearer": {"type": "apiKey", "name": "Authorization", "in": "header"},
+        "Token": {"type": "apiKey", "name": "Authorization", "in": "header"},
+    },
+    "OPERATIONS_SORTER": "alpha",
+    "SPEC_URL": "/swagger.json",
+}
+
+CORS_ORIGIN_WHITELIST = ["http://localhost:3000", "http://127.0.0.1:3000"]
+CORS_ALLOW_CREDENTIALS = True
+
+# Cloudinary 설정
+CLOUDINARY_STORAGE = {
+    "CLOUD_NAME": ENV.get("CLOUDINARY_CLOUD_NAME"),
+    "API_KEY": ENV.get("CLOUDINARY_API_KEY"),
+    "API_SECRET": ENV.get("CLOUDINARY_API_SECRET"),
+}
+
+# 로깅 설정
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "verbose": {
+            "format": "{levelname} {asctime} {module} {process:d} {thread:d} {message}",
+            "style": "{",
+        },
+        "simple": {
+            "format": "{levelname} {message}",
+            "style": "{",
+        },
+    },
+    "filters": {
+        "require_debug_true": {
+            "()": "django.utils.log.RequireDebugTrue",
+        },
+        "require_debug_false": {
+            "()": "django.utils.log.RequireDebugFalse",
+        },
+    },
+    "handlers": {
+        "console": {
+            "level": "INFO",
+            "filters": ["require_debug_true"],
+            "class": "logging.StreamHandler",
+            "formatter": "simple",
+        },
+        "file": {
+            "level": "INFO",
+            "filters": ["require_debug_false"],
+            "class": "logging.handlers.RotatingFileHandler",
+            "filename": os.path.join(BASE_DIR, "logs", "django.log"),
+            "maxBytes": 1024 * 1024 * 5,  # 5 MB
+            "backupCount": 5,
+            "formatter": "verbose",
+        },
+        "mail_admins": {
+            "level": "ERROR",
+            "filters": ["require_debug_false"],
+            "class": "django.utils.log.AdminEmailHandler",
+            "formatter": "verbose",
+        },
+    },
+    "loggers": {
+        "django": {
+            "handlers": ["console", "file", "mail_admins"],
+            "level": "INFO",
+            "propagate": True,
+        },
+        "django.request": {
+            "handlers": ["mail_admins"],
+            "level": "ERROR",
+            "propagate": False,
+        },
+    },
+    "root": {
+        "handlers": ["console", "file"],
+        "level": "INFO",
+    },
+}
+
+# Celery
+CELERY_BROKER_URL = "redis://localhost:6379/0"
+CELERY_RESULT_BACKEND = "redis://localhost:6379/0"
+CELERY_ACCEPT_CONTENT = ["application/json"]
+CELERY_TASK_SERIALIZER = "json"
+CELERY_RESULT_SERIALIZER = "json"
+CELERY_TIMEZONE = TIME_ZONE
+
+# django-debug-toolbar
+INTERNAL_IPS = [
+    "127.0.0.1",
+]
+
+# 캐시 설정
+CACHES = {
+    "default": {
+        "BACKEND": "django_redis.cache.RedisCache",
+        "LOCATION": "redis://127.0.0.1:6379/1",
+        "OPTIONS": {
+            "CLIENT_CLASS": "django_redis.client.DefaultClient",
+        },
+    }
+}

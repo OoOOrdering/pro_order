@@ -4,11 +4,7 @@ from rest_framework import filters, generics, permissions, serializers
 from apps.cs_post.models import CSPost
 
 from .models import CSReply
-from .serializers import (
-    CSReplyCreateSerializer,
-    CSReplySerializer,
-    CSReplyUpdateSerializer,
-)
+from .serializers import CSReplyCreateSerializer, CSReplySerializer, CSReplyUpdateSerializer
 
 
 class CSReplyListCreateView(generics.ListCreateAPIView):
@@ -52,8 +48,8 @@ class CSReplyListCreateView(generics.ListCreateAPIView):
             raise serializers.ValidationError("CS Post ID is required.")
         try:
             cs_post = CSPost.objects.get(pk=post_pk)
-        except CSPost.DoesNotExist:
-            raise serializers.ValidationError("CS Post not found.")
+        except CSPost.DoesNotExist as err:
+            raise serializers.ValidationError("CS Post not found.") from err
 
         serializer.save(author=self.request.user, post=cs_post)
 

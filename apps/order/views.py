@@ -141,7 +141,7 @@ class OrderExportCSVView(APIView):
                     order.payment_method,
                     order.shipping_address,
                     order.created_at,
-                ]
+                ],
             )
 
         return response

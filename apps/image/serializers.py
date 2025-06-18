@@ -41,16 +41,16 @@ class ImageUploadSerializer(serializers.ModelSerializer):
 
         try:
             content_type = ContentType.objects.get(model=data["object_type"].lower())
-        except ContentType.DoesNotExist:
-            raise CustomAPIException(IMAGE_INVALID_MODEL)
+        except ContentType.DoesNotExist as err:
+            raise CustomAPIException(IMAGE_INVALID_MODEL) from err
 
         # content_type의 모델 클래스을 반환
         model_class = content_type.model_class()
 
         try:
             target_instance = model_class.objects.get(pk=data["object_id"])
-        except model_class.DoesNotExist:
-            raise CustomAPIException(IMAGE_OBJECT_NOT_FOUND)
+        except model_class.DoesNotExist as err:
+            raise CustomAPIException(IMAGE_OBJECT_NOT_FOUND) from err
 
         # 아이돌이면 검사 제외 (임시설정)
         if data["object_type"] != "idol":
@@ -87,7 +87,7 @@ class ImageUploadSerializer(serializers.ModelSerializer):
                     public_id=public_id,
                     content_type=validated_data["content_type"],
                     object_id=validated_data["object_id"],
-                )
+                ),
             )
 
         for image_file in image_files:
@@ -98,13 +98,13 @@ class ImageUploadSerializer(serializers.ModelSerializer):
                     public_id=public_id,
                     content_type=validated_data["content_type"],
                     object_id=validated_data["object_id"],
-                )
+                ),
             )
 
         # bulk_create
         return Image.objects.bulk_create(images)
 
-    def update(self, instance, validated_data):
+    def update(self, instance, validated_data):  # noqa: ARG002
         """기존 이미지들 삭제 후 새로운 이미지 등록."""
         content_type = validated_data["content_type"]
         object_id = validated_data["object_id"]

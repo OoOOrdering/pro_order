@@ -18,7 +18,7 @@ def api_client():
 
 
 @pytest.fixture
-def create_user(db):
+def create_user():
     def _create_user(email, password, is_staff=False, **kwargs):
         return User.objects.create_user(email=email, password=password, is_staff=is_staff, is_active=True, **kwargs)
 
@@ -44,7 +44,7 @@ def authenticate_client(api_client, create_user):
 
 
 @pytest.fixture
-def create_order(db, create_user):
+def create_order(create_user):
     def _create_order(user, **kwargs):
         return Order.objects.create(
             user=user,
@@ -63,7 +63,7 @@ def create_order(db, create_user):
 
 
 @pytest.fixture
-def create_like(db, create_user, create_order):
+def create_like(create_user, create_order):
     def _create_like(user, content_object, **kwargs):
         content_type = ContentType.objects.get_for_model(content_object)
         return Like.objects.create(user=user, content_type=content_type, object_id=content_object.pk, **kwargs)
@@ -114,13 +114,8 @@ class TestLikeAPI:
         order2 = create_order(user=user)  # 다른 유형의 객체 추가를 위해 일단 Order로
 
         order_content_type = ContentType.objects.get_for_model(Order)
-        # 다른 모델이 있다면 추가할 수 있음
-        # from apps.post.models import Post
-        # post = create_post(user=user)
-        # post_content_type = ContentType.objects.get_for_model(Post)
 
         like_order1 = create_like(user=user, content_object=order1)
-        # like_post = create_like(user=user, content_object=post)
 
         url = reverse("like:like-list-create") + f"?content_type={order_content_type.pk}"
         response = api_client.get(url)
@@ -220,7 +215,12 @@ class TestLikeAPI:
         assert not Like.objects.filter(pk=like.pk).exists()
 
     def test_user_cannot_destroy_other_users_like(
-        self, api_client, authenticate_client, create_like, create_order, create_user
+        self,
+        api_client,
+        authenticate_client,
+        create_like,
+        create_order,
+        create_user,
     ):
         user1 = authenticate_client()
         user2 = create_user("another_liker@example.com", "testpass123!")

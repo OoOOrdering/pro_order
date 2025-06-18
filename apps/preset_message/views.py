@@ -34,7 +34,7 @@ class PresetMessageListCreateView(generics.ListCreateAPIView):
             queryset = queryset.filter(
                 Q(title__icontains=search_query)
                 | Q(content__icontains=search_query)
-                | Q(user__username__icontains=search_query)
+                | Q(user__username__icontains=search_query),
             )
 
         return queryset

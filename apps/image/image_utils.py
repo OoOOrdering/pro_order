@@ -21,7 +21,8 @@ cloudinary.config(
 
 
 def validate_image(image_file, max_size_mb=5):
-    """이미지 파일 유효성 검사.
+    """
+    이미지 파일 유효성 검사.
 
     Args:
     ----
@@ -50,7 +51,8 @@ def validate_image(image_file, max_size_mb=5):
 
 
 def optimize_image(image_file, max_size=(800, 800), quality=85):
-    """이미지 최적화.
+    """
+    이미지 최적화.
 
     Args:
     ----
@@ -82,7 +84,8 @@ def optimize_image(image_file, max_size=(800, 800), quality=85):
 
 
 def generate_unique_filename(original_filename):
-    """고유한 파일명을 생성합니다.
+    """
+    고유한 파일명을 생성합니다.
 
     Args:
     ----
@@ -91,13 +94,15 @@ def generate_unique_filename(original_filename):
     Returns:
     -------
         str: 고유한 파일명
+
     """
     ext = os.path.splitext(original_filename)[1]
     return f"{uuid.uuid4().hex}{ext}"
 
 
 def compress_image(image_file, max_size=(800, 800)):
-    """이미지를 압축합니다.
+    """
+    이미지를 압축합니다.
 
     Args:
     ----
@@ -107,6 +112,7 @@ def compress_image(image_file, max_size=(800, 800)):
     Returns:
     -------
         bytes: 압축된 이미지 데이터
+
     """
     img = PILImage.open(image_file)
     img.thumbnail(max_size, PILImage.Resampling.LANCZOS)
@@ -114,7 +120,8 @@ def compress_image(image_file, max_size=(800, 800)):
 
 
 def save_image_to_storage(image_file, folder="images"):
-    """이미지를 스토리지에 저장합니다.
+    """
+    이미지를 스토리지에 저장합니다.
 
     Args:
     ----
@@ -124,6 +131,7 @@ def save_image_to_storage(image_file, folder="images"):
     Returns:
     -------
         tuple: (저장된 파일 경로, 파일명)
+
     """
     filename = generate_unique_filename(image_file.name)
     path = os.path.join(folder, filename)
@@ -132,7 +140,8 @@ def save_image_to_storage(image_file, folder="images"):
 
 
 def upload_to_cloudinary(image_file, folder="images"):
-    """이미지를 Cloudinary에 업로드합니다.
+    """
+    이미지를 Cloudinary에 업로드합니다.
 
     Args:
     ----
@@ -142,6 +151,7 @@ def upload_to_cloudinary(image_file, folder="images"):
     Returns:
     -------
         tuple: (이미지 URL, public_id)
+
     """
     result = cloudinary.uploader.upload(
         image_file,
@@ -156,17 +166,20 @@ def upload_to_cloudinary(image_file, folder="images"):
 
 
 def delete_from_cloudinary(public_id):
-    """Cloudinary에서 이미지를 삭제합니다.
+    """
+    Cloudinary에서 이미지를 삭제합니다.
 
     Args:
     ----
         public_id (str): 삭제할 이미지의 public_id
+
     """
     cloudinary.uploader.destroy(public_id)
 
 
 def get_cloudinary_url(public_id, transformation=None):
-    """Cloudinary URL 생성.
+    """
+    Cloudinary URL 생성.
 
     Args:
     ----
@@ -186,7 +199,8 @@ def get_cloudinary_url(public_id, transformation=None):
 
 
 def generate_thumbnail_url(image_url: str, width: int = 300, height: int = 300, crop: str = "fill") -> str:
-    """이미지 URL을 썸네일 URL로 변환합니다.
+    """
+    이미지 URL을 썸네일 URL로 변환합니다.
 
     Args:
     ----
@@ -198,6 +212,7 @@ def generate_thumbnail_url(image_url: str, width: int = 300, height: int = 300, 
     Returns:
     -------
         str: 썸네일 URL
+
     """
     try:
         # Cloudinary URL 형식인 경우

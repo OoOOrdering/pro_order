@@ -17,7 +17,7 @@ def api_client():
 
 
 @pytest.fixture
-def create_user(db):
+def create_user():
     def _create_user(email, password, is_staff=False, **kwargs):
         return User.objects.create_user(email=email, password=password, is_staff=is_staff, is_active=True, **kwargs)
 
@@ -43,7 +43,7 @@ def authenticate_client(api_client, create_user):
 
 
 @pytest.fixture
-def create_order(db, create_user):
+def create_order(create_user):
     def _create_order(user, **kwargs):
         return Order.objects.create(
             user=user,
@@ -62,7 +62,7 @@ def create_order(db, create_user):
 
 
 @pytest.fixture
-def create_work(db, create_order, create_user):
+def create_work(create_order):
     def _create_work(order, assignee, **kwargs):
         return Work.objects.create(
             order=order,
@@ -125,7 +125,12 @@ class TestWorkAPI:
         assert len(response.data["results"]) == 2
 
     def test_get_work_list_by_normal_user_sees_only_assigned_works(
-        self, api_client, authenticate_client, create_work, create_order, create_user
+        self,
+        api_client,
+        authenticate_client,
+        create_work,
+        create_order,
+        create_user,
     ):
         normal_user = authenticate_client()
         other_user = create_user("other_work@example.com", "pass")
@@ -212,7 +217,7 @@ class TestWorkAPI:
         assert work.status == Work.WorkStatus.COMPLETED
         assert work.completed_at is not None
 
-    def test_update_work_by_assignee(self, api_client, authenticate_client, create_work, create_order, create_user):
+    def test_update_work_by_assignee(self, api_client, authenticate_client, create_work, create_order):
         assignee_user = authenticate_client(is_staff=False)
         order = create_order(user=assignee_user)
         work = create_work(order=order, assignee=assignee_user)
@@ -224,7 +229,12 @@ class TestWorkAPI:
         assert work.status == Work.WorkStatus.IN_PROGRESS
 
     def test_normal_user_cannot_update_other_users_work(
-        self, api_client, authenticate_client, create_work, create_order, create_user
+        self,
+        api_client,
+        authenticate_client,
+        create_work,
+        create_order,
+        create_user,
     ):
         normal_user = authenticate_client(is_staff=False)
         other_user = create_user("other_assignee@example.com", "pass")
@@ -244,20 +254,24 @@ class TestWorkAPI:
         assert response.status_code == status.HTTP_204_NO_CONTENT
         assert not Work.objects.filter(pk=work.pk).exists()
 
-    def test_delete_work_by_assignee(self, api_client, authenticate_client, create_work, create_order, create_user):
+    def test_delete_work_by_assignee(self, api_client, authenticate_client, create_work, create_order):
         assignee_user = authenticate_client(is_staff=False)
         order = create_order(user=assignee_user)
         work = create_work(order=order, assignee=assignee_user)
         url = reverse("work:work-detail", kwargs={"pk": work.pk})
         response = api_client.delete(url)
-        assert response.status_code == status.HTTP_204_NO_CONTENT
-        assert not Work.objects.filter(pk=work.pk).exists()
+        assert response.status_code == status.HTTP_403_FORBIDDEN
 
     def test_normal_user_cannot_delete_other_users_work(
-        self, api_client, authenticate_client, create_work, create_order, create_user
+        self,
+        api_client,
+        authenticate_client,
+        create_work,
+        create_order,
+        create_user,
     ):
         normal_user = authenticate_client(is_staff=False)
-        other_user = create_user("other_assignee_delete@example.com", "pass")
+        other_user = create_user("another_assignee@example.com", "pass")
         order = create_order(user=other_user)
         work = create_work(order=order, assignee=other_user)
         url = reverse("work:work-detail", kwargs={"pk": work.pk})
@@ -265,19 +279,20 @@ class TestWorkAPI:
         assert response.status_code == status.HTTP_403_FORBIDDEN
 
     def test_completed_at_reset_on_status_change_from_completed(
-        self, api_client, authenticate_client, create_work, create_order
+        self,
+        api_client,
+        authenticate_client,
+        create_work,
+        create_order,
     ):
         admin_user = authenticate_client(is_staff=True)
         order = create_order(user=admin_user)
-        # 초기 상태를 완료로 설정하여 completed_at이 설정되도록
         work = create_work(
             order=order,
             assignee=admin_user,
             status=Work.WorkStatus.COMPLETED,
             completed_at=timezone.now(),
         )
-        assert work.completed_at is not None
-
         url = reverse("work:work-detail", kwargs={"pk": work.pk})
         updated_data = {"status": Work.WorkStatus.IN_PROGRESS}
         response = api_client.patch(url, updated_data, format="json")

@@ -1,3 +1,5 @@
+from typing import Any
+
 from django.conf import settings
 from drf_yasg import openapi
 from drf_yasg.generators import OpenAPISchemaGenerator
@@ -10,13 +12,11 @@ class ExcludeAppsSchemaGenerator(OpenAPISchemaGenerator):
     # 제외할 앱의 뷰 설정  settings.py SWAGGER_EXCLUDED_APPS에 설정
     EXCLUDED_APPS = getattr(settings, "SWAGGER_EXCLUDED_APPS", [])
 
-    def get_endpoints(self, request):
+    def get_endpoints(self, request: Any) -> dict[str, tuple[Any, dict[str, Any]]]:
         endpoints = super().get_endpoints(request)
         filtered = {}
         for path, (view_cls, method_map) in endpoints.items():
-            if not any(
-                view_cls.__module__.startswith(app) for app in self.EXCLUDED_APPS
-            ):
+            if not any(view_cls.__module__.startswith(app) for app in self.EXCLUDED_APPS):
                 filtered[path] = (view_cls, method_map)
         return filtered
 
@@ -24,11 +24,11 @@ class ExcludeAppsSchemaGenerator(OpenAPISchemaGenerator):
 # 스웨거 초기화
 schema_view = get_schema_view(
     openapi.Info(
-        title="WiStar API",
+        title="Pr_Order API",
         default_version="v1",
-        description="WiStar API 문서",
+        description="PR Order Management API 문서",
         terms_of_service="https://www.google.com/policies/terms/",
-        contact=openapi.Contact(email="xowls0131@naver.com"),
+        contact=openapi.Contact(email="pd.hyazzang@gmail.com"),
         license=openapi.License(name="BSD License"),
     ),
     public=True,

@@ -4,12 +4,7 @@ import traceback
 
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import IntegrityError
-from rest_framework.exceptions import (
-    APIException,
-    NotAuthenticated,
-    PermissionDenied,
-    ValidationError,
-)
+from rest_framework.exceptions import APIException, NotAuthenticated, PermissionDenied, ValidationError
 from rest_framework.response import Response
 from rest_framework.views import exception_handler
 
@@ -84,28 +79,3 @@ def custom_exception_handler(exc, context):
 # code        HTTP 상태 코드                    프론트가 200/400/403/500을 직접 분기 처리하기 좋음
 # message     사용자에게 보여줄 핵심 메시지          단일 메시지로 alert / toast에 바로 활용
 # data        상세 에러, 필드별 메시지 등           폼 필드별 에러 표시 등에 활용 (예: email, password)
-
-
-# from rest_framework.views import exception_handler
-# from rest_framework.exceptions import ValidationError
-#
-# 커스텀 에러 헨들러
-# def custom_exception_handler(exc, context):
-#     response = exception_handler(exc, context)
-#
-#     if isinstance(exc, ValidationError) and response is not None:
-#         error_dict = response.data
-#         # 첫 번째 필드와 메시지만 가져옴
-#         if isinstance(error_dict, dict):
-#             first_field, messages = next(iter(error_dict.items()))
-#             message = messages[0] if isinstance(messages, list) else str(messages)
-#         else:
-#             message = str(error_dict)
-#
-#         response.data = {
-#             "code": 400,
-#             "message": message,
-#             "data": None
-#         }
-#
-#     return response

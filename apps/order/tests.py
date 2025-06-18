@@ -17,7 +17,7 @@ def api_client():
 
 
 @pytest.fixture
-def create_user(db):
+def create_user():
     def _create_user(email, password, is_staff=False, **kwargs):
         return User.objects.create_user(email=email, password=password, is_staff=is_staff, is_active=True, **kwargs)
 
@@ -42,7 +42,7 @@ def authenticate_client(api_client, create_user):
 
 
 @pytest.fixture
-def create_order(db, create_user):
+def create_order(create_user):
     def _create_order(user, **kwargs):
         order = Order.objects.create(
             user=user,
@@ -171,7 +171,7 @@ class TestOrderAPI:
         response = api_client.post(url, {"refund_reason": "Unauthorized"}, format="json")
         assert response.status_code == status.HTTP_403_FORBIDDEN
 
-    def test_order_status_log_created_on_status_change(self, api_client, authenticate_client, create_order, db):
+    def test_order_status_log_created_on_status_change(self, authenticate_client, create_order):
         from apps.order_status_log.models import OrderStatusLog
 
         user = authenticate_client()

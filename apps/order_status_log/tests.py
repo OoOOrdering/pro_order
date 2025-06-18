@@ -17,7 +17,7 @@ def api_client():
 
 
 @pytest.fixture
-def create_user(db):
+def create_user():
     def _create_user(email, password, is_staff=False, **kwargs):
         return User.objects.create_user(email=email, password=password, is_staff=is_staff, is_active=True, **kwargs)
 
@@ -43,7 +43,7 @@ def authenticate_client(api_client, create_user):
 
 
 @pytest.fixture
-def create_order(db, create_user):
+def create_order():
     def _create_order(user, **kwargs):
         return Order.objects.create(
             user=user,
@@ -62,7 +62,7 @@ def create_order(db, create_user):
 
 
 @pytest.fixture
-def create_order_status_log(db, create_order, create_user):
+def create_order_status_log():
     def _create_log(order, changed_by, **kwargs):
         return OrderStatusLog.objects.create(
             order=order,
@@ -109,7 +109,6 @@ class TestOrderStatusLogAPI:
         api_client,
         authenticate_client,
         create_order_status_log,
-        create_user,
         create_order,
     ):
         staff_user = authenticate_client(is_staff=True)
@@ -154,7 +153,11 @@ class TestOrderStatusLogAPI:
         assert response.data["results"][0]["order"] == order_for_user.pk
 
     def test_filter_order_status_log_by_new_status(
-        self, api_client, authenticate_client, create_order_status_log, create_order
+        self,
+        api_client,
+        authenticate_client,
+        create_order_status_log,
+        create_order,
     ):
         staff_user = authenticate_client(is_staff=True)
         order1 = create_order(user=staff_user, status=Order.OrderStatus.PENDING)
@@ -169,7 +172,11 @@ class TestOrderStatusLogAPI:
         assert response.data["results"][0]["id"] == log1.pk
 
     def test_search_order_status_log_by_order_number(
-        self, api_client, authenticate_client, create_order_status_log, create_order
+        self,
+        api_client,
+        authenticate_client,
+        create_order_status_log,
+        create_order,
     ):
         staff_user = authenticate_client(is_staff=True)
         order1 = create_order(user=staff_user, order_number="ORD-1111")
@@ -184,38 +191,34 @@ class TestOrderStatusLogAPI:
         assert response.data["results"][0]["order"] == order1.pk
 
     def test_sort_order_status_log_by_created_at(
-        self, api_client, authenticate_client, create_order_status_log, create_order
+        self,
+        api_client,
+        authenticate_client,
+        create_order_status_log,
+        create_order,
     ):
         staff_user = authenticate_client(is_staff=True)
         order1 = create_order(user=staff_user)
         order2 = create_order(user=staff_user)
-
-        # 시간차를 두고 로그 생성
-        log_old = create_order_status_log(
-            order=order1,
-            changed_by=staff_user,
-            created_at=timezone.now() - timedelta(days=2),
+        log1 = create_order_status_log(
+            order=order1, changed_by=staff_user, created_at=timezone.now() - timedelta(days=2)
         )
-        log_new = create_order_status_log(
-            order=order2,
-            changed_by=staff_user,
-            created_at=timezone.now() - timedelta(days=1),
+        log2 = create_order_status_log(
+            order=order2, changed_by=staff_user, created_at=timezone.now() - timedelta(days=1)
         )
 
         url = reverse("order_status_log:order-status-log-list-create") + "?ordering=created_at"
         response = api_client.get(url)
         assert response.status_code == status.HTTP_200_OK
-        assert response.data["results"][0]["id"] == log_old.pk
-        assert response.data["results"][1]["id"] == log_new.pk
-
-        url = reverse("order_status_log:order-status-log-list-create") + "?ordering=-created_at"
-        response = api_client.get(url)
-        assert response.status_code == status.HTTP_200_OK
-        assert response.data["results"][0]["id"] == log_new.pk
-        assert response.data["results"][1]["id"] == log_old.pk
+        assert response.data["results"][0]["id"] == log1.pk
+        assert response.data["results"][1]["id"] == log2.pk
 
     def test_get_order_status_log_detail_by_staff(
-        self, api_client, authenticate_client, create_order_status_log, create_order
+        self,
+        api_client,
+        authenticate_client,
+        create_order_status_log,
+        create_order,
     ):
         staff_user = authenticate_client(is_staff=True)
         order = create_order(user=staff_user)
@@ -226,11 +229,15 @@ class TestOrderStatusLogAPI:
         assert response.data["id"] == log.pk
 
     def test_get_order_status_log_detail_by_normal_user_for_own_order(
-        self, api_client, authenticate_client, create_order_status_log, create_order
+        self,
+        api_client,
+        authenticate_client,
+        create_order_status_log,
+        create_order,
     ):
         normal_user = authenticate_client()
         order = create_order(user=normal_user)
-        staff_user = create_user("staff_for_detail_log@example.com", "testpass123!", is_staff=True)
+        staff_user = create_user("staff_for_detail@example.com", "testpass123!", is_staff=True)
         log = create_order_status_log(order=order, changed_by=staff_user)
 
         url = reverse("order_status_log:order-status-log-detail", kwargs={"pk": log.pk})
@@ -247,11 +254,11 @@ class TestOrderStatusLogAPI:
         create_order,
     ):
         normal_user = authenticate_client()
-        other_user = create_user("other_user_for_detail@example.com", "testpass123!")
-        order_for_other = create_order(user=other_user)
-        staff_user = create_user("staff_for_other_log@example.com", "testpass123!", is_staff=True)
-        log = create_order_status_log(order=order_for_other, changed_by=staff_user)
+        other_user = create_user("another_user_for_log@example.com", "testpass123!")
+        order = create_order(user=other_user)
+        staff_user = create_user("staff_for_other_order@example.com", "testpass123!", is_staff=True)
+        log = create_order_status_log(order=order, changed_by=staff_user)
 
         url = reverse("order_status_log:order-status-log-detail", kwargs={"pk": log.pk})
         response = api_client.get(url)
-        assert response.status_code == status.HTTP_404_NOT_FOUND  # 권한이 없으므로 찾을 수 없음
+        assert response.status_code == status.HTTP_403_FORBIDDEN

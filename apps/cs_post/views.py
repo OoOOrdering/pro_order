@@ -2,11 +2,7 @@ from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import filters, generics, permissions
 
 from .models import CSPost
-from .serializers import (
-    CSPostCreateSerializer,
-    CSPostSerializer,
-    CSPostUpdateSerializer,
-)
+from .serializers import CSPostCreateSerializer, CSPostSerializer, CSPostUpdateSerializer
 
 
 class CSPostListCreateView(generics.ListCreateAPIView):

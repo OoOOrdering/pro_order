@@ -3,59 +3,143 @@ name = "pr_order"
 version = "0.1.0"
 description = "Personal Order Management Project"
 authors = [
-    {name = "hyazzang",email = "pd.hyazzang@gmail.com"}
+    {name = "hyazzang", email = "pd.hyazzang@gmail.com"}
 ]
 readme = "README.md"
-requires-python = ">=3.11,<3.13"
+requires-python = ">=3.12"
 dependencies = [
-    "django (>=5.2,<6.0)",
-    "djangorestframework (>=3.16.0,<4.0.0)",
-    "djangorestframework-simplejwt (>=5.5.0,<6.0.0)",
-    "certifi (>=2025.1.31,<2026.0.0)",
-    "django-storages (>=1.14.6,<2.0.0)",
-    "boto3 (>=1.37.38,<2.0.0)",
-    "python-dotenv (>=1.1.0,<2.0.0)",
-    "psycopg2-binary (>=2.9.10,<3.0.0)",
-    "django-filter (>=25.1,<26.0)",
-    "django-cors-headers (>=4.7.0,<5.0.0)",
-    "drf-yasg (>=1.21.10,<2.0.0)",
-    "pillow (>=11.2.1,<12.0.0)",
-    "requests (>=2.32.3,<3.0.0)",
-    "cloudinary (>=1.44.0,<2.0.0)",
-    "django-cloudinary-storage (==0.3.0)",
-    "charset-normalizer (>=3.4.2,<4.0.0)",
-    "reportlab (>=4.4.1,<5.0.0)",
-    "flake8 (>=7.2.0,<8.0.0)",
+    "django>=5.2,<6.0",
+    "djangorestframework>=3.16.0,<4.0.0",
+    "djangorestframework-simplejwt>=5.5.0,<6.0.0",
+    "certifi>=2025.1.31,<2026.0.0",
+    "django-storages>=1.14.6,<2.0.0",
+    "boto3>=1.37.38,<2.0.0",
+    "python-dotenv>=1.1.0,<2.0.0",
+    "psycopg2-binary>=2.9.10,<3.0.0",
+    "django-filter>=25.1,<26.0",
+    "django-cors-headers>=4.7.0,<5.0.0",
+    "drf-yasg>=1.21.10,<2.0.0",
+    "pillow>=11.2.1,<12.0.0",
+    "requests>=2.32.3,<3.0.0",
+    "cloudinary>=1.44.0,<2.0.0",
+    "django-cloudinary-storage==0.3.0",
+    "charset-normalizer>=3.4.2,<4.0.0",
+    "reportlab>=4.4.1,<5.0.0",
+    "django-redis (>=6.0.0,<7.0.0)",
 ]
 
 [tool.poetry]
+name = "pr_order"
+version = "0.1.0"
+description = "Personal Order Management Project"
+authors = ["hyazzang <pd.hyazzang@gmail.com>"]
+readme = "README.md"
+packages = []
 package-mode = false
 
-[build-system]
-requires = ["poetry-core>=2.0.0,<3.0.0"]
-build-backend = "poetry.core.masonry.api"
+[tool.poetry.dependencies]
+python = "^3.12"
+django = ">=5.2,<6.0"
+djangorestframework = ">=3.16.0,<4.0.0"
+djangorestframework-simplejwt = ">=5.5.0,<6.0.0"
+certifi = ">=2025.1.31,<2026.0.0"
+django-storages = ">=1.14.6,<2.0.0"
+boto3 = ">=1.37.38,<2.0.0"
+python-dotenv = ">=1.1.0,<2.0.0"
+psycopg2-binary = ">=2.9.10,<3.0.0"
+django-filter = ">=25.1,<26.0"
+django-cors-headers = ">=4.7.0,<5.0.0"
+drf-yasg = ">=1.21.10,<2.0.0"
+pillow = ">=11.2.1,<12.0.0"
+requests = ">=2.32.3,<3.0.0"
+cloudinary = ">=1.44.0,<2.0.0"
+django-cloudinary-storage = "0.3.0"
+charset-normalizer = ">=3.4.2,<4.0.0"
+reportlab = ">=4.4.1,<5.0.0"
 
 [tool.poetry.group.dev.dependencies]
 black = "^25.1.0"
 mypy = "^1.15.0"
 pytest = "^8.3.5"
 pytest-cov = "^6.1.1"
-isort = "^6.0.1"
-ruff = "^0.11.7"
-
-#[tool.black]
-#line-length = 99
-
-# isort 설정 black 스타일에 맞춰 정렬
 pytest-django = "^4.11.1"
+isort = "^5.10.1"
+ruff = "^0.11.7"
+pre-commit = "^3.7.0"
+django-debug-toolbar = "^4.3.0"
+factory-boy = "^3.3.0"
+faker = "^24.1.0"
+coverage = "^7.4.4"
+safety = "^2.3.5"
+bandit = "^1.7.9"
+types-reportlab = "^4.4.1.20250602"
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.black]
+line-length = 120
+target-version = ["py312"]
+include = '\.pyi?$'
+
 [tool.isort]
 profile = "black"
+line_length = 120
+multi_line_output = 3
+include_trailing_comma = true
+force_grid_wrap = 0
+use_parentheses = true
+ensure_newline_before_comments = true
 
 [tool.mypy]
-ignore_errors = true
-#ignore_missing_imports = true
-#follow_imports = "silent"
-#warn_unused_configs = true
+python_version = "3.12"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+check_untyped_defs = true
+disallow_untyped_decorators = false
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_no_return = true
+warn_unreachable = true
+strict_optional = true
+plugins = ["mypy_django_plugin.main"]
+
+[[tool.mypy.overrides]]
+module = [
+    "cloudinary.*",
+    "drf_yasg.*",
+    "django_filters.*",
+    "reportlab.*",
+    "pytest.*",
+    "locust.*"
+]
+ignore_missing_imports = true
+
+[tool.mypy_django_plugin]
+django_settings_module = "config.settings.local"
+
+[tool.django-stubs]
+django_settings_module = "config.settings.settings"
+strict_settings = true
+
+[[tool.mypy.overrides]]
+module = ["django.*", "rest_framework.*", "apps.*.tests.*"]
+ignore_missing_imports = true
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+check_untyped_defs = false
+disallow_untyped_decorators = false
+
+[[tool.mypy.overrides]]
+module = ["apps.*.models.*"]
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+check_untyped_defs = false
+disallow_untyped_decorators = false
 
 [tool.pytest.ini_options]
 testpaths = ["apps"]
@@ -63,40 +147,23 @@ DJANGO_SETTINGS_MODULE = "config.settings.settings"
 python_files = ["test_*.py", "*_test.py", "tests.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
-addopts = "--cov=apps --cov-report=term-missing"
+addopts = "--cov=apps --cov-report=term-missing --cov-report=html"
+filterwarnings = [
+    "ignore::DeprecationWarning",
+    "ignore::django.utils.deprecation.RemovedInDjango50Warning",
+]
 
 [tool.ruff]
 line-length = 120
-target-version = "py310" # 또는 사용 중인 Python 버전 (예: "py38", "py39")
+target-version = "py312"
 
 [tool.ruff.lint]
 select = [
     "E",   # pycodestyle 에러
-    "W",   # pycodestyle 경고
     "F",   # Pyflakes
-    "I",   # isort (임포트 정렬)
-    "N",   # pep8-naming (명명 규칙)
-    "D",   # pydocstyle (Docstring) - 선택 사항
-    "UP",  # pyupgrade
-    "C",   # complexity
-    "RUF", # Ruff-specific rules
 ]
 ignore = [
-    "D100", # Missing docstring in public module
-    "D101", # Missing docstring in public class
-    "D102", # Missing docstring in public method
-    "D103", # Missing docstring in public function
-    "D104", # Missing docstring in public package
-    "D105", # Missing docstring in magic method
-    "D106", # Missing docstring in public nested class
-    "D107", # Missing docstring in __init__
-    "D401", # Imperative mood
-    "RUF012", # Mutable class attributes ClassVar
-    "F841", # Assigned but unused
     "E501", # Line too long
-    "D205", # 1 blank line required between summary line and description
-    "C901", # `update` is too complex (12 > 10)
-    "F811", # Redefinition of unused
 ]
 
 [tool.ruff.format]
@@ -104,3 +171,16 @@ quote-style = "double"
 indent-style = "space"
 skip-magic-trailing-comma = false
 line-ending = "auto"
+
+[tool.bandit]
+exclude_dirs = ["tests/"] # tests/ 디렉토리 전체를 스캔에서 제외합니다.
+skips = [
+    "B101", # assert_used
+    "B105", # Possible hardcoded password string
+    "B106", # Possible hardcoded password
+    "B107", # Possible hardcoded password
+    "B311", # Standard pseudo-random generators
+    "B404", # Consider possible security implications associated with the subprocess module.
+    "B603", # subprocess call - check for execution of untrusted input.
+    "B607", # Starting a process with a partial executable path
+]

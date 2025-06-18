@@ -47,10 +47,10 @@ class RegisterSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, required=True)
     password_confirm = serializers.CharField(write_only=True, required=True)
     email = serializers.EmailField(
-        validators=[UniqueValidator(queryset=User.objects.all(), message=DUPLICATE_EMAIL["message"])]
+        validators=[UniqueValidator(queryset=User.objects.all(), message=DUPLICATE_EMAIL["message"])],
     )
     nickname = serializers.CharField(
-        validators=[UniqueValidator(queryset=User.objects.all(), message=DUPLICATE_NICKNAME["message"])]
+        validators=[UniqueValidator(queryset=User.objects.all(), message=DUPLICATE_NICKNAME["message"])],
     )
 
     class Meta:
@@ -90,13 +90,12 @@ class LogoutSerializer(serializers.Serializer):
         self.token = attrs["refresh_token"]
         return attrs
 
-    def save(self, **kwargs):
+    def save(self, **kwargs):  # noqa: ARG002
         try:
             token = RefreshToken(self.token)  # 토큰이 유효한지 검사됨
-            print(f"토큰 타입: {token.get('token_type')}")  # 디코드된 토큰 타입 확인
             token.blacklist()  # 블랙리스트 등록
-        except Exception:
-            raise CustomAPIException(INVALID_REFRESH_TOKEN)
+        except Exception as err:
+            raise CustomAPIException(INVALID_REFRESH_TOKEN) from err
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -173,10 +172,8 @@ class ProfileUpdateSerializer(serializers.ModelSerializer):
         profile_image_file = validated_data.pop("profile_image_file", None)
 
         if profile_image_file:
-            # 기존 이미지 삭제
-            # instance.profile_images.all().delete()
-            content_type = ContentType.objects.get_for_model(instance)
             # 기존 이미지 모두 삭제 후 새 이미지 업로드
+            content_type = ContentType.objects.get_for_model(instance)
             for img in Image.objects.filter(content_type=content_type, object_id=instance.id):
                 # Cloudinary에서 이미지 삭제
                 if img.public_id:
@@ -197,7 +194,7 @@ class ProfileUpdateSerializer(serializers.ModelSerializer):
                     public_id=public_id,
                 )
             except Exception as e:
-                raise CustomAPIException(f"이미지 업로드 실패: {e}")
+                raise CustomAPIException(f"이미지 업로드 실패: {e}") from e
 
         return super().update(instance, validated_data)
 
@@ -249,10 +246,12 @@ class UserUpdateSerializer(serializers.ModelSerializer):
                     delete_from_cloudinary(img.public_id)
                 img.delete()
 
+            # 새 이미지 업로드
             image_data = profile_image_file.read()
             image_name = profile_image_file.name
             folder_path = f"users/{instance.id}/profile_image"
 
+            # Cloudinary에 업로드 및 URL/public_id 저장
             try:
                 image_url, public_id = upload_to_cloudinary(image_data, image_name, folder_path)
                 Image.objects.create(
@@ -261,7 +260,7 @@ class UserUpdateSerializer(serializers.ModelSerializer):
                     public_id=public_id,
                 )
             except Exception as e:
-                raise CustomAPIException(f"이미지 업로드 실패: {e}")
+                raise CustomAPIException(f"이미지 업로드 실패: {e}") from e
 
         return super().update(instance, validated_data)
 
@@ -278,6 +277,7 @@ class PasswordResetConfirmSerializer(serializers.Serializer):
     def validate(self, data):
         if data["password"] != data["password_confirm"]:
             raise serializers.ValidationError("비밀번호가 일치하지 않습니다.")
+        PasswordValidator.validate_password(data["password"])
         return data
 
 
@@ -291,21 +291,17 @@ class ResendVerificationEmailSerializer(serializers.Serializer):
     def validate_email(self, value):
         try:
             user = User.objects.get(email=value)
-            if user.is_email_verified:
+            if user.is_active:
                 raise serializers.ValidationError("이미 이메일이 인증되었습니다.")
-        except User.DoesNotExist:
-            raise serializers.ValidationError("해당 이메일 주소로 등록된 사용자가 없습니다.")
+        except User.DoesNotExist as err:
+            raise serializers.ValidationError("해당 이메일 주소로 등록된 사용자가 없습니다.") from err
         return value
 
 
 class UserBulkApproveSerializer(serializers.Serializer):
     user_ids = serializers.ListField(
         child=serializers.IntegerField(),
-        min_length=1,
-        error_messages={
-            "min_length": "최소 한 명의 사용자 ID를 포함해야 합니다.",
-            "empty": "사용자 ID 목록은 비어 있을 수 없습니다.",
-        },
+        write_only=True,
     )
 
 
@@ -317,11 +313,14 @@ class PasswordChangeSerializer(serializers.Serializer):
     def validate(self, data):
         if data["new_password"] != data["new_password_confirm"]:
             raise serializers.ValidationError("새 비밀번호가 일치하지 않습니다.")
+        PasswordValidator.validate_password(data["new_password"])
         return data
 
-    def save(self, **kwargs):
+    def save(self, **kwargs):  # noqa: ARG002
         user = self.context["request"].user
         if not user.check_password(self.validated_data["old_password"]):
-            raise serializers.ValidationError("이전 비밀번호가 올바르지 않습니다.")
+            raise serializers.ValidationError("현재 비밀번호가 올바르지 않습니다.")
+
         user.set_password(self.validated_data["new_password"])
         user.save()
+        return user

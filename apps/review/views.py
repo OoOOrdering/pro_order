@@ -41,7 +41,7 @@ class ReviewListCreateView(generics.ListCreateAPIView):
             queryset = queryset.filter(
                 Q(comment__icontains=search_query)
                 | Q(order__order_number__icontains=search_query)
-                | Q(reviewer__username__icontains=search_query)
+                | Q(reviewer__username__icontains=search_query),
             )
 
         return queryset

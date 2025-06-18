@@ -42,7 +42,7 @@ class ProgressListCreateView(generics.ListCreateAPIView):
             queryset = queryset.filter(
                 Q(order__order_number__icontains=search_query)
                 | Q(notes__icontains=search_query)
-                | Q(current_step__icontains=search_query)
+                | Q(current_step__icontains=search_query),
             )
 
         return queryset

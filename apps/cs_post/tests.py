@@ -16,7 +16,7 @@ def api_client():
 
 
 @pytest.fixture
-def create_user(db):
+def create_user():
     def _create_user(email, password, is_staff=False, **kwargs):
         return User.objects.create_user(email=email, password=password, is_staff=is_staff, is_active=True, **kwargs)
 
@@ -42,7 +42,7 @@ def authenticate_client(api_client, create_user):
 
 
 @pytest.fixture
-def create_cs_post(db, create_user):
+def create_cs_post(create_user):
     def _create_cs_post(author, **kwargs):
         return CSPost.objects.create(
             author=author,
@@ -73,7 +73,7 @@ class TestCSPostAPI:
         assert response.data["title"] == "Bug Report"
         assert response.data["author"]["id"] == user.pk
 
-    def test_get_cs_post_list(self, api_client, authenticate_client, create_cs_post, create_user):
+    def test_get_cs_post_list(self, api_client, authenticate_client, create_cs_post):
         user1 = authenticate_client()
         user2 = create_user("reporter2@example.com", "testpass123!")
         create_cs_post(author=user1, title="User1 Inquiry")
@@ -86,7 +86,7 @@ class TestCSPostAPI:
         assert len(response.data["results"]) == 1
         assert response.data["results"][0]["author"]["id"] == user1.pk
 
-    def test_get_cs_post_list_admin(self, api_client, authenticate_client, create_cs_post, create_user):
+    def test_get_cs_post_list_admin(self, api_client, authenticate_client, create_cs_post):
         admin_user = authenticate_client(is_staff=True)
         user1 = create_user("reporter3@example.com", "testpass123!")
         create_cs_post(author=user1, title="User3 Inquiry")
@@ -98,7 +98,7 @@ class TestCSPostAPI:
         # 관리자는 모든 게시물을 볼 수 있음
         assert len(response.data["results"]) == 2
 
-    def test_filter_cs_post_by_type_and_status(self, api_client, authenticate_client, create_cs_post, create_user):
+    def test_filter_cs_post_by_type_and_status(self, api_client, authenticate_client, create_cs_post):
         user = authenticate_client()
         create_cs_post(author=user, post_type="inquiry", status="pending")
         create_cs_post(author=user, post_type="report", status="completed")
@@ -109,7 +109,7 @@ class TestCSPostAPI:
         assert response.data["results"][0]["post_type"] == "inquiry"
         assert response.data["results"][0]["status"] == "pending"
 
-    def test_filter_cs_post_by_created_at_range(self, api_client, authenticate_client, create_cs_post, create_user):
+    def test_filter_cs_post_by_created_at_range(self, api_client, authenticate_client, create_cs_post):
         user = authenticate_client()
         today = timezone.now()
         yesterday = today - timedelta(days=1)
@@ -132,8 +132,27 @@ class TestCSPostAPI:
         assert len(response.data["results"]) == 1
         assert response.data["results"][0]["id"] == post2.pk
 
+    def test_filter_cs_post_by_status(
+        self,
+        api_client,
+        authenticate_client,
+        create_cs_post,
+    ):
+        user = authenticate_client()
+        create_cs_post(author=user, post_type="inquiry", status="pending")
+        create_cs_post(author=user, post_type="report", status="completed")
+        url = reverse("cs_post:cspost-list-create") + "?post_type=inquiry&status=pending"
+        response = api_client.get(url)
+        assert response.status_code == status.HTTP_200_OK
+        assert len(response.data["results"]) == 1
+        assert response.data["results"][0]["post_type"] == "inquiry"
+        assert response.data["results"][0]["status"] == "pending"
+
     def test_search_cs_post_by_title_content_or_author_email(
-        self, api_client, authenticate_client, create_cs_post, create_user
+        self,
+        api_client,
+        authenticate_client,
+        create_cs_post,
     ):
         user = authenticate_client()
         user_email = user.email

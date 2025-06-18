@@ -16,7 +16,7 @@ def api_client():
 
 
 @pytest.fixture
-def create_user(db):
+def create_user():
     def _create_user(email, password, is_staff=False, **kwargs):
         return User.objects.create_user(email=email, password=password, is_staff=is_staff, is_active=True, **kwargs)
 
@@ -42,7 +42,7 @@ def authenticate_client(api_client, create_user):
 
 
 @pytest.fixture
-def create_preset_message(db, create_user):
+def create_preset_message(create_user):
     def _create_preset_message(user=None, **kwargs):
         if user is None:
             user = create_user("default_preset_user@example.com", "testpass123!")
@@ -72,7 +72,7 @@ class TestPresetMessageAPI:
         assert response.data["title"] == "Greeting Message"
         assert response.data["user"] == user.pk
 
-    def test_get_preset_message_list(self, api_client, authenticate_client, create_preset_message, create_user):
+    def test_get_preset_message_list(self, api_client, authenticate_client, create_preset_message):
         user1 = authenticate_client()
         user2 = create_user("user2@example.com", "testpass123!")
         create_preset_message(user=user1, title="User1 Message 1")
@@ -172,7 +172,11 @@ class TestPresetMessageAPI:
         assert not PresetMessage.objects.filter(pk=message.pk).exists()
 
     def test_user_cannot_update_other_users_preset_message(
-        self, api_client, authenticate_client, create_preset_message, create_user
+        self,
+        api_client,
+        authenticate_client,
+        create_preset_message,
+        create_user,
     ):
         user1 = authenticate_client()
         user2 = create_user("another_user@example.com", "pass123")
@@ -183,7 +187,11 @@ class TestPresetMessageAPI:
         assert response.status_code == status.HTTP_403_FORBIDDEN
 
     def test_admin_can_update_any_preset_message(
-        self, api_client, authenticate_client, create_preset_message, create_user
+        self,
+        api_client,
+        authenticate_client,
+        create_preset_message,
+        create_user,
     ):
         admin_user = authenticate_client(is_staff=True)
         user2 = create_user("another_user2@example.com", "pass123")
@@ -196,7 +204,11 @@ class TestPresetMessageAPI:
         assert message.title == "Admin Updated Title"
 
     def test_user_cannot_delete_other_users_preset_message(
-        self, api_client, authenticate_client, create_preset_message, create_user
+        self,
+        api_client,
+        authenticate_client,
+        create_preset_message,
+        create_user,
     ):
         user1 = authenticate_client()
         user2 = create_user("another_user3@example.com", "pass123")
@@ -206,7 +218,11 @@ class TestPresetMessageAPI:
         assert response.status_code == status.HTTP_403_FORBIDDEN
 
     def test_admin_can_delete_any_preset_message(
-        self, api_client, authenticate_client, create_preset_message, create_user
+        self,
+        api_client,
+        authenticate_client,
+        create_preset_message,
+        create_user,
     ):
         admin_user = authenticate_client(is_staff=True)
         user2 = create_user("another_user4@example.com", "pass123")

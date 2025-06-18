@@ -5,7 +5,8 @@ from .models import Notification
 
 @admin.register(Notification)
 class NotificationAdmin(admin.ModelAdmin):
-    """알림 모델의 관리자 인터페이스를 정의합니다.
+    """
+    알림 모델의 관리자 인터페이스를 정의합니다.
 
     목록 표시, 필터링, 검색 기능을 제공합니다.
     """

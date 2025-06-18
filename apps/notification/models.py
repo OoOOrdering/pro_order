@@ -4,7 +4,8 @@ from django.db import models
 
 
 class Notification(models.Model):
-    """사용자에게 전달되는 알림을 관리하는 모델입니다.
+    """
+    사용자에게 전달되는 알림을 관리하는 모델입니다.
 
     제목, 내용, 읽음 여부 등의 정보를 포함합니다.
     """
@@ -22,7 +23,8 @@ class Notification(models.Model):
     updated_at = models.DateTimeField(auto_now=True, verbose_name="수정일시")
 
     class Meta:
-        """알림 모델의 메타데이터를 정의합니다.
+        """
+        알림 모델의 메타데이터를 정의합니다.
 
         모델의 표시 이름과 정렬 순서를 설정합니다.
         """

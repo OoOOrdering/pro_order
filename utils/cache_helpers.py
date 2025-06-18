@@ -8,7 +8,8 @@ logger = logging.getLogger(__name__)
 
 
 def invalidate_user_cache(user_id):
-    """사용자 관련 모든 캐시를 무효화합니다.
+    """
+    사용자 관련 모든 캐시를 무효화합니다.
 
     Args:
     ----

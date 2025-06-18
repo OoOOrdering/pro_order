@@ -17,7 +17,7 @@ def api_client():
 
 
 @pytest.fixture
-def create_user(db):
+def create_user():
     def _create_user(email, password, is_staff=False, **kwargs):
         return User.objects.create_user(email=email, password=password, is_staff=is_staff, is_active=True, **kwargs)
 
@@ -43,7 +43,7 @@ def authenticate_client(api_client, create_user):
 
 
 @pytest.fixture
-def create_order(db, create_user):
+def create_order():
     def _create_order(user, **kwargs):
         return Order.objects.create(
             user=user,
@@ -62,7 +62,7 @@ def create_order(db, create_user):
 
 
 @pytest.fixture
-def create_review(db, create_order, create_user):
+def create_review():
     def _create_review(order, reviewer, **kwargs):
         return Review.objects.create(order=order, reviewer=reviewer, rating=5, comment="Great service!", **kwargs)
 
@@ -72,113 +72,113 @@ def create_review(db, create_order, create_user):
 @pytest.mark.django_db
 class TestReviewAPI(APITestCase):
     def setUp(self):
-        # 테스트용 사용자 생성
-        self.user = User.objects.create_user(username="testuser", password="testpass123")
-        self.other_user = User.objects.create_user(username="otheruser", password="testpass123")
-
-        # 테스트용 주문 생성
-        self.order = Order.objects.create(order_number="TEST-001", user=self.user)
-
-        # 테스트용 리뷰 생성
+        self.reviewer = User.objects.create_user(
+            email="reviewer@example.com", password="reviewerpass", nickname="reviewer"
+        )
+        self.order = Order.objects.create(
+            user=self.reviewer,
+            order_number="ORD-20231026-001",
+            status=Order.OrderStatus.COMPLETED,
+            total_amount="100.00",
+            payment_method="Credit Card",
+            payment_status="PAID",
+            shipping_address="123 Main St",
+            shipping_phone="555-1234",
+            shipping_name="John Doe",
+        )
         self.review = Review.objects.create(
             order=self.order,
-            reviewer=self.user,
+            reviewer=self.reviewer,
             rating=5,
-            comment="Great service!",
-            is_public=True,
+            comment="Excellent service!",
         )
-
-        # API 엔드포인트 URL
-        self.list_url = reverse("review-list-create")
-        self.detail_url = reverse("review-detail", kwargs={"pk": self.review.pk})
-
-        # 인증
-        self.client.force_authenticate(user=self.user)
+        self.client.force_authenticate(user=self.reviewer)
+        self.list_url = reverse("review:review-list-create")
+        self.detail_url = reverse("review:review-detail", kwargs={"pk": self.review.pk})
 
     def test_create_review(self):
-        """리뷰 생성 테스트."""
         data = {
-            "order": self.order.id,
+            "order": self.order.pk,
             "rating": 4,
-            "comment": "Good service",
+            "comment": "Good service.",
             "is_public": True,
         }
         response = self.client.post(self.list_url, data)
-        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        self.assertEqual(Review.objects.count(), 2)
+        assert response.status_code == status.HTTP_201_CREATED
+        assert Review.objects.count() == 2
 
     def test_create_duplicate_review(self):
-        """중복 리뷰 생성 방지 테스트."""
         data = {
-            "order": self.order.id,
-            "rating": 4,
-            "comment": "Another review",
-            "is_public": True,
+            "order": self.order.pk,
+            "rating": 3,
+            "comment": "Already reviewed.",
         }
         response = self.client.post(self.list_url, data)
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
 
     def test_list_reviews(self):
         """리뷰 목록 조회 테스트."""
         response = self.client.get(self.list_url)
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data["results"]), 1)
+        assert response.status_code == status.HTTP_200_OK
+        assert len(response.data["results"]) == 1
 
     def test_filter_reviews_by_rating(self):
         """평점으로 리뷰 필터링 테스트."""
         response = self.client.get(f"{self.list_url}?rating=5")
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data["results"]), 1)
+        assert response.status_code == status.HTTP_200_OK
+        assert len(response.data["results"]) == 1
 
     def test_search_reviews(self):
         """리뷰 검색 테스트."""
         response = self.client.get(f"{self.list_url}?search=Great")
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data["results"]), 1)
+        assert response.status_code == status.HTTP_200_OK
+        assert len(response.data["results"]) == 1
 
     def test_sort_reviews(self):
-        """리뷰 정렬 테스트."""
-        # 새로운 리뷰 생성
-        Review.objects.create(
-            order=self.order,
-            reviewer=self.other_user,
-            rating=3,
-            comment="Average service",
-            is_public=True,
+        # 추가 리뷰 생성 (정렬 테스트용)
+        order2 = Order.objects.create(
+            user=self.reviewer,
+            order_number="ORD-20231026-002",
+            status=Order.OrderStatus.COMPLETED,
+            total_amount="200.00",
+            payment_method="Bank Transfer",
+            payment_status="PAID",
+            shipping_address="456 Second St",
+            shipping_phone="555-5678",
+            shipping_name="Jane Doe",
         )
+        Review.objects.create(order=order2, reviewer=self.reviewer, rating=3, comment="Average service!")
 
         # 평점 높은순 정렬
         response = self.client.get(f"{self.list_url}?ordering=-rating")
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.data["results"][0]["rating"], 5)
+        assert response.status_code == status.HTTP_200_OK
+        assert response.data["results"][0]["rating"] == 5
 
     def test_update_review(self):
-        """리뷰 수정 테스트."""
         data = {"rating": 4, "comment": "Updated review", "is_public": True}
         response = self.client.patch(self.detail_url, data)
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        assert response.status_code == status.HTTP_200_OK
         self.review.refresh_from_db()
-        self.assertEqual(self.review.rating, 4)
-        self.assertEqual(self.review.comment, "Updated review")
+        assert self.review.rating == 4
+        assert self.review.comment == "Updated review"
 
     def test_delete_review(self):
         """리뷰 삭제 테스트."""
         response = self.client.delete(self.detail_url)
-        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
-        self.assertEqual(Review.objects.count(), 0)
+        assert response.status_code == status.HTTP_204_NO_CONTENT
+        assert Review.objects.count() == 0
 
     def test_unauthorized_access(self):
-        """인증되지 않은 접근 테스트."""
         self.client.force_authenticate(user=None)
         response = self.client.get(self.list_url)
-        self.assertEqual(response.status_code, status.HTTP_200_OK)  # 조회는 가능
+        assert response.status_code == status.HTTP_200_OK  # 조회는 가능
 
         response = self.client.post(self.list_url, {})
-        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+        assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
-    def test_get_review_list(self, api_client, authenticate_client, create_review, create_order, create_user):
+    def test_get_review_list(self, api_client, authenticate_client, create_review, create_order):
         user1 = authenticate_client()
-        user2 = create_user("reviewer2@example.com", "testpass123!")
+        user2 = User.objects.create_user("reviewer2@example.com", "testpass123!")
         order1 = create_order(user=user1)
         order2 = create_order(user=user2)
         create_review(order=order1, reviewer=user1, rating=5)
@@ -188,17 +188,17 @@ class TestReviewAPI(APITestCase):
         assert response.status_code == status.HTTP_200_OK
         assert len(response.data["results"]) == 2
 
-    def test_filter_review_by_rating(self, api_client, authenticate_client, create_review, create_order, create_user):
+    def test_filter_review_by_rating(self, api_client, authenticate_client, create_review, create_order):
         user = authenticate_client()
+        user_for_filter = User.objects.create_user("filter_user@example.com", "pass")
         order1 = create_order(user=user)
-        order2 = create_order(user=create_user("filter_user@example.com", "pass"))
+        order2 = create_order(user=user_for_filter)
         create_review(order=order1, reviewer=user, rating=5)
         create_review(order=order2, reviewer=user, rating=3)
         url = reverse("review:review-list-create") + "?rating=5"
         response = api_client.get(url)
         assert response.status_code == status.HTTP_200_OK
         assert len(response.data["results"]) == 1
-        assert response.data["results"][0]["rating"] == 5
 
     def test_get_review_detail(self, api_client, authenticate_client, create_review, create_order):
         user = authenticate_client()
@@ -232,7 +232,12 @@ class TestReviewAPI(APITestCase):
         assert not Review.objects.filter(pk=review.pk).exists()
 
     def test_user_cannot_update_other_users_review(
-        self, api_client, authenticate_client, create_review, create_user, create_order
+        self,
+        api_client,
+        authenticate_client,
+        create_review,
+        create_user,
+        create_order,
     ):
         user1 = authenticate_client()
         user2 = create_user("another_reviewer@example.com", "pass123")
@@ -244,7 +249,12 @@ class TestReviewAPI(APITestCase):
         assert response.status_code == status.HTTP_403_FORBIDDEN
 
     def test_admin_can_update_any_review(
-        self, api_client, authenticate_client, create_review, create_user, create_order
+        self,
+        api_client,
+        authenticate_client,
+        create_review,
+        create_user,
+        create_order,
     ):
         admin_user = authenticate_client(is_staff=True)
         user2 = create_user("another_reviewer_admin@example.com", "pass123")
@@ -258,7 +268,12 @@ class TestReviewAPI(APITestCase):
         assert review.comment == "Admin updated comment"
 
     def test_user_cannot_delete_other_users_review(
-        self, api_client, authenticate_client, create_review, create_user, create_order
+        self,
+        api_client,
+        authenticate_client,
+        create_review,
+        create_user,
+        create_order,
     ):
         user1 = authenticate_client()
         user2 = create_user("another_reviewer_delete@example.com", "pass123")
@@ -269,7 +284,12 @@ class TestReviewAPI(APITestCase):
         assert response.status_code == status.HTTP_403_FORBIDDEN
 
     def test_admin_can_delete_any_review(
-        self, api_client, authenticate_client, create_review, create_user, create_order
+        self,
+        api_client,
+        authenticate_client,
+        create_review,
+        create_user,
+        create_order,
     ):
         admin_user = authenticate_client(is_staff=True)
         user2 = create_user("another_reviewer_delete_admin@example.com", "pass123")

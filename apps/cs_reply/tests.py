@@ -17,7 +17,7 @@ def api_client():
 
 
 @pytest.fixture
-def create_user(db):
+def create_user():
     def _create_user(email, password, is_staff=False, **kwargs):
         return User.objects.create_user(email=email, password=password, is_staff=is_staff, is_active=True, **kwargs)
 
@@ -43,7 +43,7 @@ def authenticate_client(api_client, create_user):
 
 
 @pytest.fixture
-def create_cs_post(db, create_user):
+def create_cs_post():
     def _create_cs_post(author, **kwargs):
         return CSPost.objects.create(
             author=author,
@@ -58,7 +58,7 @@ def create_cs_post(db, create_user):
 
 
 @pytest.fixture
-def create_cs_reply(db, create_user, create_cs_post):
+def create_cs_reply():
     def _create_cs_reply(cs_post, author, **kwargs):
         return CSReply.objects.create(
             post=cs_post,
@@ -165,7 +165,11 @@ class TestCSReplyAPI:
         assert response.data["results"][0]["id"] == reply1.pk
 
     def test_filter_cs_reply_by_created_at_range(
-        self, api_client, authenticate_client, create_cs_reply, create_cs_post
+        self,
+        api_client,
+        authenticate_client,
+        create_cs_reply,
+        create_cs_post,
     ):
         admin_user = authenticate_client(is_staff=True)
         cs_post = create_cs_post(author=admin_user)

@@ -5,11 +5,7 @@ from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import filters, generics, permissions
 
 from .models import ChatMessage
-from .serializers import (
-    ChatMessageCreateSerializer,
-    ChatMessageSerializer,
-    ChatMessageUpdateSerializer,
-)
+from .serializers import ChatMessageCreateSerializer, ChatMessageSerializer, ChatMessageUpdateSerializer
 
 
 class ChatMessageListCreateView(generics.ListCreateAPIView):

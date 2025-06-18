@@ -8,7 +8,8 @@ def get_user_profile_cache_key(user_id):
 
 
 def get_user_list_cache_key(page=1, filters=None):
-    """사용자 리스트 캐시 키를 생성합니다.
+    """
+    사용자 리스트 캐시 키를 생성합니다.
 
     필터 조건이 있으면 키에 포함합니다.
     """

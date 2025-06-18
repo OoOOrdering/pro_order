@@ -12,7 +12,10 @@ class TimestampModel(models.Model):
 class CloudinaryImageMixin(models.Model):
     image_url = models.URLField("이미지 URL", blank=True, null=True)
     image_public_id = models.CharField(
-        "Cloudinary public ID", max_length=255, blank=True, null=True
+        "Cloudinary public ID",
+        max_length=255,
+        blank=True,
+        null=True,
     )
 
     class Meta:
@@ -21,6 +24,7 @@ class CloudinaryImageMixin(models.Model):
     def get_thumbnail_url(self, width=300, height=300, crop="fill"):
         if self.image_url and "/upload/" in self.image_url:
             return self.image_url.replace(
-                "/upload/", f"/upload/w_{width},h_{height},c_{crop}/"
+                "/upload/",
+                f"/upload/w_{width},h_{height},c_{crop}/",
             )
         return self.image_url

@@ -1,8 +1,12 @@
+import logging
+
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
 from django.db import models
 
 from .image_utils import delete_from_cloudinary, generate_thumbnail_url
+
+logger = logging.getLogger(__name__)
 
 
 class Image(models.Model):
@@ -26,7 +30,8 @@ class Image(models.Model):
         ordering = ["-uploaded_at"]
 
     def get_thumbnail_url(self, width=300, height=300, crop="fill"):
-        """이미지의 썸네일 URL을 반환합니다.
+        """
+        이미지의 썸네일 URL을 반환합니다.
 
         Args:
         ----
@@ -46,8 +51,8 @@ class Image(models.Model):
         if self.public_id:
             try:
                 delete_from_cloudinary(self.public_id)
-            except Exception:
-                # Cloudinary 삭제 실패 시에도 DB에서 삭제
-                pass
+            except Exception as e:
+                # Cloudinary 삭제 실패 시 로그 기록
+                logger.warning(f"Failed to delete image from Cloudinary: {self.public_id}. Error: {e!s}")
 
         super().delete(*args, **kwargs)

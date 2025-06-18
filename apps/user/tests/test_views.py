@@ -21,25 +21,25 @@ class UserProfileViewTest(TestCase):
     def test_get_profile(self):
         """프로필 조회 테스트."""
         response = self.client.get(self.url)
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.data["code"], 200)
-        self.assertEqual(response.data["data"]["email"], self.user.email)
+        assert response.status_code == status.HTTP_200_OK
+        assert response.data["code"] == 200
+        assert response.data["data"]["email"] == self.user.email
 
     def test_update_profile(self):
         """프로필 수정 테스트."""
         data = {"nickname": "new_nickname", "name": "New Name"}
         response = self.client.patch(self.url, data)
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.data["code"], 200)
-        self.assertEqual(response.data["data"]["nickname"], "new_nickname")
+        assert response.status_code == status.HTTP_200_OK
+        assert response.data["code"] == 200
+        assert response.data["data"]["nickname"] == "new_nickname"
 
     def test_delete_profile(self):
         """프로필 삭제(비활성화) 테스트."""
         response = self.client.delete(self.url)
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.data["code"], 200)
+        assert response.status_code == status.HTTP_200_OK
+        assert response.data["code"] == 200
         self.user.refresh_from_db()
-        self.assertFalse(self.user.is_active)
+        assert self.user.is_active is False
 
 
 class UserListViewTest(TestCase):
@@ -66,18 +66,18 @@ class UserListViewTest(TestCase):
     def test_list_users(self):
         """사용자 목록 조회 테스트."""
         response = self.client.get(self.url)
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.data["code"], 200)
-        self.assertEqual(len(response.data["data"]), 6)  # admin + 5 users
+        assert response.status_code == status.HTTP_200_OK
+        assert response.data["code"] == 200
+        assert len(response.data["data"]) == 6  # admin + 5 users
 
     def test_list_users_with_filters(self):
         """필터링된 사용자 목록 조회 테스트."""
         response = self.client.get(f"{self.url}?is_active=true")
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.data["code"], 200)
+        assert response.status_code == status.HTTP_200_OK
+        assert response.data["code"] == 200
 
     def test_unauthorized_access(self):
         """권한 없는 접근 테스트."""
         self.client.force_authenticate(user=None)
         response = self.client.get(self.url)
-        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+        assert response.status_code == status.HTTP_401_UNAUTHORIZED

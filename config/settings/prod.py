@@ -14,7 +14,7 @@ DATABASES = {
         "PASSWORD": ENV.get("DB_PASSWORD", ""),
         "HOST": ENV.get("DB_HOST", "localhost"),
         "PORT": ENV.get("DB_PORT", "5432"),
-    }
+    },
 }
 
 # Security settings

@@ -4,18 +4,14 @@ name: Project CI, CD
 # Trigger : main 또는 develop 브랜치에 푸쉬되거나 PR 이 생성되는 경우.
 on:
   push:
-    branches:
-      - main
-      - develop
+    branches: [main, develop]
   pull_request:
-    branches:
-      - main
-      - develop
+    branches: [main, develop]
 
 # Jobs: runs-on에서 ubuntu를 runner 환경으로 지정
 jobs:
   test:
-    runs-on: ubuntu-22.04  # 가상 운영체제 환경에서 실행됨. 실제 프롣덕션(배포)환경에서는 모든 버전을 고정하는 것이 좋다.
+    runs-on: ubuntu-22.04 # 가상 운영체제 환경에서 실행됨. 실제 프롣덕션(배포)환경에서는 모든 버전을 고정하는 것이 좋다.
     # services: 리눅스 기반의 운영체제는 서비스 컨테이너를 지정할 수 있다. postgres를 DB로 사용하기 위해 개별적인 컨테이너를 지정하고 실행할 수 있도록 함.
     services:
       postgres:
@@ -26,8 +22,8 @@ jobs:
           POSTGRES_PASSWORD: password
           POSTGRES_DB: test_db
         # postgres에 사용할 port를 지정. 5432 포트로 들어오는 요청을 5432 포트로 포워딩 해줌. (기본값과 동일)
-#        ports:
-#          - 5432:5432
+        #        ports:
+        #          - 5432:5432
         # 컨테이너 실행 시 사용할 수 있는 옵션을 지정해줍니다.
         # --health-cmd pg_isready : postgres가 정상적으로 실행되었는지 체크하는 명령어
         # --health-interval 10s : heath check주기를 10초로 설정
@@ -46,7 +42,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.12'
+          python-version: "3.12"
 
       - name: Install Poetry
         run: |
@@ -65,30 +61,29 @@ jobs:
         run: |
           poetry lock
           poetry install --no-interaction --no-root
-          poetry run pre-commit install
 
-          - name: Run pre-commit hooks
-          run: |
-            poetry run pre-commit run --all-files
+      - name: Run pre-commit hooks
+        run: |
+          poetry run pre-commit run --all-files
 
-#      - name: Run code format check (black & isort)
-#        run: |
-#          poetry run isort .
-#          poetry run black .
+      - name: Run code format check (black & isort)
+        run: |
+          poetry run isort .
+          poetry run black .
 
       - name: Run static type checks (mypy)
         run: poetry run mypy . --config-file pyproject.toml
 
-#      - name: Run tests with coverage
-#        run: |
-#          poetry run coverage run --source="src" src/manage.py test
-#          coverage report --fail-under=80
+      - name: Run tests with coverage
+        run: |
+          poetry run coverage run --source="src" src/manage.py test
+          coverage report --fail-under=80
 
-# 메인 브랜치 변경 시 자동 배포 적용
+  # 메인 브랜치 변경 시 자동 배포 적용
   deploy:
     runs-on: ubuntu-latest
     needs: test
-    if: github.ref == 'refs/heads/main'  # main 브랜치일 때만 실행
+    if: github.ref == 'refs/heads/main' # main 브랜치일 때만 실행
     steps:
       - name: EC2 ssh connection and deploy
         uses: appleboy/ssh-action@master

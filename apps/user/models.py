@@ -81,11 +81,14 @@ class User(AbstractBaseUser, TimestampModel):  # 기본 기능은 상속받아�
     is_staff = models.BooleanField(verbose_name="스태프 권한", default=False)  # is_staff 기능
     is_superuser = models.BooleanField(verbose_name="관리자 권한", default=False)  # is_superuser(관리자) 기능
     is_active = models.BooleanField(
-        verbose_name="계정 활성화", default=False
+        verbose_name="계정 활성화",
+        default=False,
     )  # 기본적으로 비활성화 시켜놓고 확인 절차를 거친 후 활성화
     failed_login_attempts = models.PositiveIntegerField(verbose_name="실패한 로그인 시도 횟수", default=0)
     last_failed_login_attempt = models.DateTimeField(
-        verbose_name="마지막 실패한 로그인 시도 시간", null=True, blank=True
+        verbose_name="마지막 실패한 로그인 시도 시간",
+        null=True,
+        blank=True,
     )
 
     # 사용자 지정 메니져
@@ -114,11 +117,11 @@ class User(AbstractBaseUser, TimestampModel):  # 기본 기능은 상속받아�
     ############################################
 
     # 특정 권한(perm)에 대해 사용자가 권한을 가지고 있는지 판단
-    def has_perm(self, perm, obj=None):
+    def has_perm(self, perm, obj=None):  # noqa: ARG002
         return self.is_superuser
 
     # 특정 앱(app_label)에 접근할 권한이 있는지 판단
-    def has_module_perms(self, app_label):
+    def has_module_perms(self, app_label):  # noqa: ARG002
         return self.is_superuser
 
     ############################################

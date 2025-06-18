@@ -18,7 +18,7 @@ def api_client():
 
 
 @pytest.fixture
-def create_user(db):
+def create_user():
     """사용자 생성 픽스처를 생성합니다."""
 
     def _create_user(email, password, is_staff=False, **kwargs):
@@ -49,7 +49,8 @@ def authenticate_client(api_client, create_user):
 
 @pytest.mark.django_db
 class TestNotificationAPI:
-    """알림 API에 대한 테스트 클래스입니다.
+    """
+    알림 API에 대한 테스트 클래스입니다.
 
     알림 생성, 조회, 수정, 삭제, 읽음 표시 등의 기능을 테스트합니다.
     """
@@ -96,7 +97,10 @@ class TestNotificationAPI:
         assert len(response.data["results"]) == 2
 
     def test_get_notification_list_by_normal_user_sees_only_own_notifications(
-        self, api_client, authenticate_client, create_user
+        self,
+        api_client,
+        authenticate_client,
+        create_user,
     ):
         """일반 사용자가 자신의 알림만 조회할 수 있는지 테스트합니다."""
         normal_user = authenticate_client()
@@ -123,7 +127,9 @@ class TestNotificationAPI:
         admin_user = authenticate_client(is_staff=True)
         normal_user = create_user("target_user_detail@example.com", "pass")
         notification = Notification.objects.create(
-            user=normal_user, title="Admin Access Notif", content="Admin Content"
+            user=normal_user,
+            title="Admin Access Notif",
+            content="Admin Content",
         )
         url = reverse("notification-detail", args=[notification.pk])
         response = api_client.get(url)
@@ -135,7 +141,9 @@ class TestNotificationAPI:
         normal_user = authenticate_client()
         other_user = create_user("other_user_detail@example.com", "pass")
         notification = Notification.objects.create(
-            user=other_user, title="Restricted Notif", content="Restricted Content"
+            user=other_user,
+            title="Restricted Notif",
+            content="Restricted Content",
         )
         url = reverse("notification-detail", args=[notification.pk])
         response = api_client.get(url)
@@ -157,7 +165,9 @@ class TestNotificationAPI:
         admin_user = authenticate_client(is_staff=True)
         normal_user = create_user("update_target_user@example.com", "pass")
         notification = Notification.objects.create(
-            user=normal_user, title="Admin Updatable Notif", content="Original Content"
+            user=normal_user,
+            title="Admin Updatable Notif",
+            content="Original Content",
         )
         url = reverse("notification-detail", args=[notification.pk])
         updated_data = {"content": "Admin Updated Content"}
@@ -171,7 +181,9 @@ class TestNotificationAPI:
         normal_user = authenticate_client()
         other_user = create_user("other_user_update@example.com", "pass")
         notification = Notification.objects.create(
-            user=other_user, title="Restricted Update Notif", content="Original Content"
+            user=other_user,
+            title="Restricted Update Notif",
+            content="Original Content",
         )
         url = reverse("notification-detail", args=[notification.pk])
         updated_data = {"content": "Attempted Update"}
@@ -257,7 +269,7 @@ class TestNotificationAPI:
         assert response.status_code == status.HTTP_200_OK
         assert response.data["unread_count"] == 2
 
-    def test_notification_list_filter_by_is_read(self, api_client, authenticate_client, create_user):
+    def test_notification_list_filter_by_is_read(self, api_client, authenticate_client):
         """알림 목록을 읽음 상태로 필터링할 수 있는지 테스트합니다."""
         user = authenticate_client()
         # Create notifications with different read statuses
@@ -270,7 +282,7 @@ class TestNotificationAPI:
         assert len(response.data["results"]) == 1
         assert not response.data["results"][0]["is_read"]
 
-    def test_notification_list_search(self, api_client, authenticate_client, create_user):
+    def test_notification_list_search(self, api_client, authenticate_client):
         """알림 목록을 검색할 수 있는지 테스트합니다."""
         user = authenticate_client()
         # Create notifications with different titles
@@ -283,7 +295,7 @@ class TestNotificationAPI:
         assert len(response.data["results"]) == 1
         assert "Important" in response.data["results"][0]["title"]
 
-    def test_notification_list_sort_by_created_at(self, api_client, authenticate_client, create_user):
+    def test_notification_list_sort_by_created_at(self, api_client, authenticate_client):
         """알림 목록을 생성일시 기준으로 정렬할 수 있는지 테스트합니다."""
         user = authenticate_client()
         # Create notifications with different timestamps

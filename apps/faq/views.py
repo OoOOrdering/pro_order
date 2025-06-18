@@ -38,7 +38,7 @@ class FAQListCreateView(generics.ListCreateAPIView):
             queryset = queryset.filter(
                 Q(question__icontains=search_query)
                 | Q(answer__icontains=search_query)
-                | Q(category__icontains=search_query)
+                | Q(category__icontains=search_query),
             )
 
         return queryset
@@ -94,7 +94,7 @@ class PublishedFAQListView(generics.ListAPIView):
             queryset = queryset.filter(
                 Q(question__icontains=search_query)
                 | Q(answer__icontains=search_query)
-                | Q(category__icontains=search_query)
+                | Q(category__icontains=search_query),
             )
 
         return queryset

@@ -1,5 +1,3 @@
-from datetime import timedelta
-
 import pytest
 from django.core import signing
 from django.core.exceptions import ValidationError
@@ -121,7 +119,7 @@ def test_token_refresh(api_client, create_user):
     api_client.cookies["refresh_token"] = refresh_token
 
     refresh_url = reverse("user:token_refresh")
-    response = api_client.post(refresh_url, **{"HTTP_X_CSRFTOKEN": csrf_token})
+    response = api_client.post(refresh_url, HTTP_X_CSRFTOKEN=csrf_token)
 
     assert response.status_code == status.HTTP_200_OK
     assert "access_token" in response.data["data"]
@@ -155,9 +153,9 @@ class TestUserAPI(APITestCase):
             "nickname": "newuser",
         }
         response = self.client.post(url, data, format="json")
-        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        self.assertEqual(User.objects.count(), 3)
-        self.assertFalse(User.objects.get(email="newuser@example.com").is_active)
+        assert response.status_code == status.HTTP_201_CREATED
+        assert User.objects.count() == 3
+        assert User.objects.get(email="newuser@example.com").is_active is False
 
     def test_email_verification(self):
         # 이메일 인증 토큰 생성
@@ -168,20 +166,20 @@ class TestUserAPI(APITestCase):
         url = reverse("user:verify_email") + f"?code={signed_code}"
         response = self.client.get(url)
 
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        assert response.status_code == status.HTTP_200_OK
         self.user.refresh_from_db()
-        self.assertTrue(self.user.is_email_verified)
-        self.assertTrue(self.user.is_active)
+        assert self.user.is_email_verified is True
+        assert self.user.is_active is True
 
     def test_user_login(self):
         url = reverse("user:token_login")
         data = {"email": "test@example.com", "password": "testpass123!"}
         response = self.client.post(url, data)
 
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertIn("access_token", response.data["data"])
-        self.assertIn("csrf_token", response.data["data"])
-        self.assertIn("refresh_token", response.cookies)
+        assert response.status_code == status.HTTP_200_OK
+        assert "access_token" in response.data["data"]
+        assert "csrf_token" in response.data["data"]
+        assert "refresh_token" in response.cookies
 
     def test_user_logout(self):
         # 먼저 로그인
@@ -195,8 +193,8 @@ class TestUserAPI(APITestCase):
         logout_url = reverse("user:token_logout")
         response = self.client.post(logout_url)
 
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertNotIn("refresh_token", response.cookies)
+        assert response.status_code == status.HTTP_200_OK
+        assert "refresh_token" not in response.cookies
 
     def test_user_profile_update(self):
         # 로그인
@@ -211,10 +209,10 @@ class TestUserAPI(APITestCase):
         data = {"name": "Updated Name", "nickname": "updateduser"}
         response = self.client.patch(url, data, format="json")
 
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        assert response.status_code == status.HTTP_200_OK
         self.user.refresh_from_db()
-        self.assertEqual(self.user.name, "Updated Name")
-        self.assertEqual(self.user.nickname, "updateduser")
+        assert self.user.name == "Updated Name"
+        assert self.user.nickname == "updateduser"
 
     def test_user_deactivation(self):
         # 로그인
@@ -228,9 +226,9 @@ class TestUserAPI(APITestCase):
         url = reverse("user:user-profile")
         response = self.client.delete(url)
 
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        assert response.status_code == status.HTTP_200_OK
         self.user.refresh_from_db()
-        self.assertFalse(self.user.is_active)
+        assert self.user.is_active is False
 
     def test_admin_user_management(self):
         # 관리자 로그인
@@ -244,108 +242,106 @@ class TestUserAPI(APITestCase):
         url = reverse("user:user-list")
         response = self.client.get(url)
 
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data["data"]), 2)
+        assert response.status_code == status.HTTP_200_OK
+        assert len(response.data["data"]) == 2
 
     def test_password_change(self):
-        # 로그인
-        login_url = reverse("user:token_login")
-        login_data = {"email": "test@example.com", "password": "testpass123!"}
-        login_response = self.client.post(login_url, login_data)
-        access_token = login_response.data["data"]["access_token"]
-        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {access_token}")
-
-        # 비밀번호 변경
         url = reverse("user:password_change")
         data = {
             "old_password": "testpass123!",
             "new_password": "newpass123!",
             "new_password_confirm": "newpass123!",
         }
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {self.user.get_jwt_token()}")
         response = self.client.post(url, data, format="json")
-
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        assert response.status_code == status.HTTP_200_OK
 
         # 새 비밀번호로 로그인 테스트
+        login_url = reverse("user:token_login")
         login_data = {"email": "test@example.com", "password": "newpass123!"}
         login_response = self.client.post(login_url, login_data)
-        self.assertEqual(login_response.status_code, status.HTTP_200_OK)
+        assert login_response.status_code == status.HTTP_200_OK
 
     def test_duplicate_email_registration(self):
         url = reverse("user:signup")
         data = {
-            "email": "test@example.com",  # 이미 존재하는 이메일
+            "email": "test@example.com",
             "password": "newpass123!",
             "password_confirm": "newpass123!",
             "name": "New User",
             "nickname": "newuser",
         }
         response = self.client.post(url, data, format="json")
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
 
     def test_duplicate_nickname_registration(self):
         url = reverse("user:signup")
         data = {
-            "email": "newuser@example.com",
+            "email": "anotheruser@example.com",
             "password": "newpass123!",
             "password_confirm": "newpass123!",
             "name": "New User",
-            "nickname": "testuser",  # 이미 존재하는 닉네임
+            "nickname": "testuser",
         }
         response = self.client.post(url, data, format="json")
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
 
     def test_invalid_email_verification(self):
         # 유효하지 않은 토큰
         url = reverse("user:verify_email") + "?code=invalid_code"
         response = self.client.get(url)
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
 
     def test_expired_email_verification(self):
         # 만료된 토큰 생성
-        signer = TimestampSigner(salt="user_email_verification")
+        signer = TimestampSigner(salt="email_verification")
         signed_email = signer.sign(self.user.email)
-
-        # 수동으로 만료 시간 변경 (예: 2일 전)
-        expired_timestamp = (timezone.now() - timedelta(days=2)).timestamp()
-        signed_code = f"{signed_email}:{expired_timestamp}"
+        # 만료 시간을 짧게 설정하여 테스트
+        signed_code = signing.dumps(signed_email, compress=False, serializer=signing.JSONSerializer())
+        with pytest.raises(signing.SignatureExpired):
+            signing.loads(signed_code, max_age=0.00000001, serializer=signing.JSONSerializer())  # 즉시 만료
 
         url = reverse("user:verify_email") + f"?code={signed_code}"
         response = self.client.get(url)
-        self.assertEqual(response.status_code, status.HTTP_410_GONE)
+        assert response.status_code == status.HTTP_410_GONE
 
 
 @pytest.mark.django_db
 class TestPasswordValidators(APITestCase):
     def test_custom_password_validator_min_length(self):
-        validator = CustomPasswordValidator(min_length=12)
-        with self.assertRaisesMessage(ValidationError, "비밀번호는 최소 12자 이상이어야 합니다."):
-            validator.validate("shortpass")
+        validator = CustomPasswordValidator(min_length=10)
+        with pytest.raises(ValidationError):
+            validator.validate("short", user=None)
 
     def test_custom_password_validator_no_upper(self):
-        validator = CustomPasswordValidator()
-        with self.assertRaisesMessage(ValidationError, "비밀번호는 하나 이상의 대문자를 포함해야 합니다."):
-            validator.validate("testpassword123!")
+        validator = CustomPasswordValidator(require_upper=True)
+        with pytest.raises(ValidationError):
+            validator.validate("password123!", user=None)
 
     def test_custom_password_validator_no_lower(self):
-        validator = CustomPasswordValidator()
-        with self.assertRaisesMessage(ValidationError, "비밀번호는 하나 이상의 소문자를 포함해야 합니다."):
-            validator.validate("TESTPASSWORD123!")
+        validator = CustomPasswordValidator(require_lower=True)
+        with pytest.raises(ValidationError):
+            validator.validate("PASSWORD123!", user=None)
 
     def test_custom_password_validator_no_digit(self):
-        validator = CustomPasswordValidator()
-        with self.assertRaisesMessage(ValidationError, "비밀번호는 하나 이상의 숫자를 포함해야 합니다."):
-            validator.validate("Testpassword!!")
+        validator = CustomPasswordValidator(require_digit=True)
+        with pytest.raises(ValidationError):
+            validator.validate("Password!!", user=None)
 
     def test_custom_password_validator_no_special(self):
-        validator = CustomPasswordValidator()
-        with self.assertRaisesMessage(ValidationError, "비밀번호는 하나 이상의 특수 문자를 포함해야 합니다."):
-            validator.validate("Testpassword123")
+        validator = CustomPasswordValidator(require_special=True)
+        with pytest.raises(ValidationError):
+            validator.validate("Password123", user=None)
 
     def test_custom_password_validator_valid(self):
-        validator = CustomPasswordValidator()
-        # 유효성 검사 통과 시 예외가 발생하지 않아야 함
+        validator = CustomPasswordValidator(
+            min_length=8,
+            require_upper=True,
+            require_lower=True,
+            require_digit=True,
+            require_special=True,
+        )
         try:
-            validator.validate("Testpassword123!")
-        except ValidationError as e:
-            self.fail(f"유효한 비밀번호에 대해 ValidationError 발생: {e}")
+            validator.validate("ValidPass123!", user=None)
+        except ValidationError:
+            self.fail("ValidationError raised unexpectedly!")
