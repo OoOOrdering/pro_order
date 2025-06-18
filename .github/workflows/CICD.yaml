@@ -31,8 +31,6 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
-        containerEnv:
-          REDIS_DB: "1"
 
     steps:
       - name: Checkout code
