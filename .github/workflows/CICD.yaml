@@ -71,7 +71,7 @@ jobs:
 
       - name: Install and run mypy
         run: |
-          poetry add --group dev mypy
+          poetry add --group dev "mypy" "django-stubs" "djangorestframework-stubs" "types-requests"
           poetry run mypy . --config-file pyproject.toml
 
       - name: Run tests with coverage
