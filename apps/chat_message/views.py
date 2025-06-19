@@ -5,6 +5,7 @@ from django_filters.rest_framework import DjangoFilterBackend
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework import filters, generics, permissions
+from rest_framework.response import Response
 
 from utils.response import BaseResponseMixin
 
@@ -50,8 +51,9 @@ class ChatMessageListCreateView(BaseResponseMixin, generics.ListCreateAPIView):
         },
     )
     def get(self, request, *args, **kwargs):
-        response = super().get(request, *args, **kwargs)
-        return self.success(data=response.data, message="채팅 메시지 목록을 조회했습니다.")
+        queryset = self.filter_queryset(self.get_queryset())
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data)
 
     @swagger_auto_schema(
         operation_summary="채팅 메시지 생성",
