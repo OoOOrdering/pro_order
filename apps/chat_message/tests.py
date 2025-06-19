@@ -35,7 +35,7 @@ class TestChatMessageAPI:
         api_client.force_authenticate(user=user)
         data = {"chat_room": chat_room.id, "message_type": "text", "content": "Hello, world!"}
 
-        response = api_client.post(f"/api/v1/chat-rooms/{chat_room.id}/messages/", data=data, format="json")
+        response = api_client.post(f"/chat-rooms/{chat_room.id}/messages/", data=data, format="json")
 
         assert response.status_code == status.HTTP_201_CREATED
         assert response.data["data"]["content"] == "Hello, world!"
@@ -50,7 +50,7 @@ class TestChatMessageAPI:
             "message_type": "text",
         }
 
-        response = api_client.post(f"/api/v1/chat-rooms/{chat_room.id}/messages/", data=data, format="json")
+        response = api_client.post(f"/chat-rooms/{chat_room.id}/messages/", data=data, format="json")
 
         assert response.status_code == status.HTTP_400_BAD_REQUEST
 
@@ -59,7 +59,7 @@ class TestChatMessageAPI:
         api_client.force_authenticate(user=user)
         data = {"chat_room": chat_room.id, "message_type": "image", "image": image_file}
 
-        response = api_client.post(f"/api/v1/chat-rooms/{chat_room.id}/messages/", data=data, format="multipart")
+        response = api_client.post(f"/chat-rooms/{chat_room.id}/messages/", data=data, format="multipart")
 
         assert response.status_code == status.HTTP_201_CREATED
         assert response.data["data"]["message_type"] == "image"
@@ -73,7 +73,7 @@ class TestChatMessageAPI:
         text_message = ChatMessage.objects.create(
             chat_room=chat_room, sender=user, message_type="text", content="Test message"
         )
-        response = api_client.get(f"/api/v1/chat-rooms/{chat_room.id}/messages/")
+        response = api_client.get(f"/chat-rooms/{chat_room.id}/messages/")
         assert response.status_code == status.HTTP_200_OK
         assert len(response.data) >= 1
         assert response.data[0]["content"] == text_message.content
@@ -90,7 +90,7 @@ class TestChatMessageAPI:
         data = {"content": "Updated message"}
 
         response = api_client.patch(
-            f"/api/v1/chat-rooms/{text_message.chat_room.id}/messages/{text_message.id}/", data=data, format="json"
+            f"/chat-rooms/{text_message.chat_room.id}/messages/{text_message.id}/", data=data, format="json"
         )
 
         assert response.status_code == status.HTTP_200_OK
@@ -110,7 +110,7 @@ class TestChatMessageAPI:
         text_message.save()
         data = {"content": "Updated message"}
         response = api_client.patch(
-            f"/api/v1/chat-rooms/{text_message.chat_room.id}/messages/{text_message.id}/", data=data, format="json"
+            f"/chat-rooms/{text_message.chat_room.id}/messages/{text_message.id}/", data=data, format="json"
         )
         assert response.status_code == status.HTTP_403_FORBIDDEN
 
@@ -123,7 +123,7 @@ class TestChatMessageAPI:
             chat_room=chat_room, sender=user, message_type="text", content="Test message"
         )
 
-        response = api_client.delete(f"/api/v1/chat-rooms/{text_message.chat_room.id}/messages/{text_message.id}/")
+        response = api_client.delete(f"/chat-rooms/{text_message.chat_room.id}/messages/{text_message.id}/")
 
         assert response.status_code == status.HTTP_204_NO_CONTENT
         assert not ChatMessage.objects.filter(id=text_message.id).exists()
@@ -140,7 +140,7 @@ class TestChatMessageAPI:
         )
         text_message.timestamp = timezone.now() - timedelta(minutes=6)
         text_message.save()
-        response = api_client.delete(f"/api/v1/chat-rooms/{text_message.chat_room.id}/messages/{text_message.id}/")
+        response = api_client.delete(f"/chat-rooms/{text_message.chat_room.id}/messages/{text_message.id}/")
         assert response.status_code == status.HTTP_403_FORBIDDEN
         assert ChatMessage.objects.filter(id=text_message.id).exists()
 
@@ -155,7 +155,7 @@ class TestChatMessageAPI:
         api_client.force_authenticate(user=another_user)
         data = {"content": "Updated by another user"}
         response = api_client.patch(
-            f"/api/v1/chat-rooms/{text_message.chat_room.id}/messages/{text_message.id}/", data=data, format="json"
+            f"/chat-rooms/{text_message.chat_room.id}/messages/{text_message.id}/", data=data, format="json"
         )
         assert response.status_code == status.HTTP_403_FORBIDDEN
 
@@ -168,6 +168,6 @@ class TestChatMessageAPI:
             chat_room=chat_room, sender=sender, message_type="text", content="Test message"
         )
         api_client.force_authenticate(user=another_user)
-        response = api_client.delete(f"/api/v1/chat-rooms/{text_message.chat_room.id}/messages/{text_message.id}/")
+        response = api_client.delete(f"/chat-rooms/{text_message.chat_room.id}/messages/{text_message.id}/")
         assert response.status_code == status.HTTP_403_FORBIDDEN
         assert ChatMessage.objects.filter(id=text_message.id).exists()

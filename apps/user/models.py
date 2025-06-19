@@ -78,8 +78,6 @@ class User(AbstractBaseUser, TimestampModel):  # 기본 기능은 상속받아�
     )
     is_email_verified = models.BooleanField(_("이메일 인증 여부"), default=False)
     email_verification_token = models.CharField(_("이메일 인증 토큰"), max_length=100, blank=True)
-    social_id = models.CharField(_("소셜 ID"), max_length=100, blank=True)
-    social_type = models.CharField(_("소셜 타입"), max_length=20, blank=True)
     created_at = models.DateTimeField(_("생성일"), auto_now_add=True)
     updated_at = models.DateTimeField(_("수정일"), auto_now=True)
     name = models.CharField(verbose_name="이름", max_length=25)

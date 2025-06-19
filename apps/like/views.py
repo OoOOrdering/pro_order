@@ -1,5 +1,7 @@
 from django_filters import rest_framework as filters
 from django_filters.rest_framework import DjangoFilterBackend
+from drf_yasg import openapi
+from drf_yasg.utils import swagger_auto_schema
 from rest_framework import generics, permissions
 from rest_framework.filters import OrderingFilter
 
@@ -28,7 +30,35 @@ class LikeListCreateView(BaseResponseMixin, generics.ListCreateAPIView):
     filterset_class = LikeFilter
     ordering_fields = ["created_at"]
 
+    @swagger_auto_schema(
+        operation_summary="좋아요 목록 조회",
+        operation_description="내가 누른 좋아요 목록을 조회합니다.",
+        responses={
+            200: openapi.Response("성공적으로 좋아요 목록을 반환합니다.", LikeSerializer(many=True)),
+            400: "잘못된 요청입니다.",
+            401: "인증이 필요합니다.",
+            403: "접근 권한이 없습니다.",
+        },
+    )
+    def get(self, request, *args, **kwargs):
+        return super().get(request, *args, **kwargs)
+
+    @swagger_auto_schema(
+        operation_summary="좋아요 등록",
+        operation_description="새로운 좋아요를 등록합니다.",
+        responses={
+            201: openapi.Response("좋아요가 성공적으로 등록되었습니다.", LikeSerializer),
+            400: "잘못된 요청입니다.",
+            401: "인증이 필요합니다.",
+            403: "접근 권한이 없습니다.",
+        },
+    )
+    def post(self, request, *args, **kwargs):
+        return super().post(request, *args, **kwargs)
+
     def get_queryset(self):
+        if getattr(self, "swagger_fake_view", False):
+            return Like.objects.none()
         return Like.objects.filter(user=self.request.user)
 
     def get_serializer_class(self):
@@ -53,6 +83,25 @@ class LikeDestroyView(BaseResponseMixin, generics.DestroyAPIView):
     serializer_class = LikeSerializer
     permission_classes = [permissions.IsAuthenticated]
     lookup_field = "pk"
+
+    @swagger_auto_schema(
+        operation_summary="좋아요 삭제",
+        operation_description="좋아요를 취소(삭제)합니다.",
+        responses={
+            204: "좋아요가 성공적으로 삭제되었습니다.",
+            400: "잘못된 요청입니다.",
+            401: "인증이 필요합니다.",
+            403: "접근 권한이 없습니다.",
+            404: "좋아요를 찾을 수 없습니다.",
+        },
+    )
+    def delete(self, request, *args, **kwargs):
+        return super().delete(request, *args, **kwargs)
+
+    def get_queryset(self):
+        if getattr(self, "swagger_fake_view", False):
+            return Like.objects.none()
+        return super().get_queryset()
 
     def perform_destroy(self, instance):
         if instance.user != self.request.user:

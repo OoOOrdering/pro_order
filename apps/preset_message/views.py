@@ -3,6 +3,8 @@ import logging
 from django.db import models
 from django.db.models import Q
 from django_filters.rest_framework import DjangoFilterBackend
+from drf_yasg import openapi
+from drf_yasg.utils import swagger_auto_schema
 from rest_framework import filters, generics, permissions
 
 from utils.response import BaseResponseMixin
@@ -26,7 +28,37 @@ class PresetMessageListCreateView(BaseResponseMixin, generics.ListCreateAPIView)
     ordering_fields = ["title", "created_at", "updated_at"]
     ordering = ["title"]
 
+    @swagger_auto_schema(
+        operation_summary="프리셋 메시지 목록 조회",
+        operation_description="사용자별로 등록된 프리셋 메시지(템플릿 메시지) 목록을 조회합니다. 검색, 정렬, 필터링이 가능합니다.",
+        tags=["PresetMessage"],
+        responses={
+            200: openapi.Response("프리셋 메시지 목록을 정상적으로 조회했습니다.", PresetMessageSerializer(many=True)),
+            401: "인증되지 않은 사용자입니다.",
+        },
+    )
+    def get(self, request, *args, **kwargs):
+        """프리셋 메시지 목록 조회"""
+        return super().get(request, *args, **kwargs)
+
+    @swagger_auto_schema(
+        operation_summary="프리셋 메시지 생성",
+        operation_description="새로운 프리셋 메시지(템플릿 메시지)를 생성합니다. 생성 시 본인 계정에 귀속됩니다.",
+        tags=["PresetMessage"],
+        responses={
+            201: openapi.Response("프리셋 메시지가 정상적으로 생성되었습니다.", PresetMessageSerializer),
+            400: "요청 데이터가 올바르지 않습니다.",
+            401: "인증되지 않은 사용자입니다.",
+        },
+    )
+    def post(self, request, *args, **kwargs):
+        """프리셋 메시지 생성"""
+        return super().post(request, *args, **kwargs)
+
     def get_queryset(self):
+        # drf-yasg 문서 생성 시에는 쿼리 실행하지 않음
+        if getattr(self, "swagger_fake_view", False):
+            return PresetMessage.objects.none()
         queryset = PresetMessage.objects.filter(models.Q(user=self.request.user) | models.Q(user__isnull=True))
 
         # 검색어가 있는 경우
@@ -67,7 +99,52 @@ class PresetMessageDetailView(BaseResponseMixin, generics.RetrieveUpdateDestroyA
     permission_classes = [permissions.IsAuthenticated]
     lookup_field = "pk"
 
+    @swagger_auto_schema(
+        operation_summary="프리셋 메시지 상세 조회",
+        operation_description="프리셋 메시지의 상세 정보를 조회합니다.",
+        tags=["PresetMessage"],
+        responses={
+            200: openapi.Response("프리셋 메시지 정보를 정상적으로 조회했습니다.", PresetMessageSerializer),
+            401: "인증되지 않은 사용자입니다.",
+            403: "접근 권한이 없습니다.",
+            404: "프리셋 메시지를 찾을 수 없습니다.",
+        },
+    )
+    def get(self, request, *args, **kwargs):
+        return super().get(request, *args, **kwargs)
+
+    @swagger_auto_schema(
+        operation_summary="프리셋 메시지 수정",
+        operation_description="프리셋 메시지의 내용을 수정합니다.",
+        tags=["PresetMessage"],
+        responses={
+            200: openapi.Response("프리셋 메시지가 정상적으로 수정되었습니다.", PresetMessageSerializer),
+            400: "요청 데이터가 올바르지 않습니다.",
+            401: "인증되지 않은 사용자입니다.",
+            403: "접근 권한이 없습니다.",
+            404: "프리셋 메시지를 찾을 수 없습니다.",
+        },
+    )
+    def put(self, request, *args, **kwargs):
+        return super().put(request, *args, **kwargs)
+
+    @swagger_auto_schema(
+        operation_summary="프리셋 메시지 삭제",
+        operation_description="프리셋 메시지를 삭제합니다.",
+        tags=["PresetMessage"],
+        responses={
+            204: openapi.Response("프리셋 메시지가 정상적으로 삭제되었습니다."),
+            401: "인증되지 않은 사용자입니다.",
+            403: "접근 권한이 없습니다.",
+            404: "프리셋 메시지를 찾을 수 없습니다.",
+        },
+    )
+    def delete(self, request, *args, **kwargs):
+        return super().delete(request, *args, **kwargs)
+
     def get_queryset(self):
+        if getattr(self, "swagger_fake_view", False):
+            return PresetMessage.objects.none()
         return PresetMessage.objects.filter(models.Q(user=self.request.user) | models.Q(user__isnull=True))
 
     def get_serializer_class(self):

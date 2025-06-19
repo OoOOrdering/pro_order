@@ -175,7 +175,11 @@ jobs:
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USERNAME }}
-          key: ${{ secrets.SSH_PASSWORD }}
+          # SSH 개인키 인증 방식 권장 (아래 key 필드 사용)
+          key: ${{ secrets.SSH_KEY }}
+          # 만약 비밀번호 인증을 쓸 경우 아래 password 필드 사용 (key와 동시 사용 불가)
+          # password: ${{ secrets.SSH_PASSWORD }}
+          port: 22
           command_timeout: 5m
           script: |
             cd /home/ubuntu/WiStarBack

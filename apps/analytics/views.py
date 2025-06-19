@@ -1,5 +1,7 @@
 from django.db.models import Avg, Count, F
 from django_filters.rest_framework import DjangoFilterBackend
+from drf_yasg import openapi
+from drf_yasg.utils import swagger_auto_schema
 from rest_framework import filters, generics, permissions
 
 from utils.response import BaseResponseMixin
@@ -17,6 +19,8 @@ class DailyAnalyticsListView(generics.ListAPIView):
     ordering_fields = ["date"]
 
     def get_queryset(self):
+        if getattr(self, "swagger_fake_view", False):
+            return DailyAnalytics.objects.none()
         queryset = super().get_queryset()
         start_date = self.request.query_params.get("start_date")
         end_date = self.request.query_params.get("end_date")
@@ -26,6 +30,20 @@ class DailyAnalyticsListView(generics.ListAPIView):
         if end_date:
             queryset = queryset.filter(date__lte=end_date)
         return queryset
+
+    @swagger_auto_schema(
+        operation_summary="일별 통계 목록 조회",
+        operation_description="관리자 권한으로 일별 통계 데이터 목록을 조회합니다. 날짜별 필터링이 가능합니다.",
+        tags=["Analytics"],
+        responses={
+            200: openapi.Response("일별 통계 목록을 정상적으로 조회하였습니다."),
+            401: "인증되지 않은 사용자입니다.",
+            403: "접근 권한이 없습니다.",
+        },
+    )
+    def get(self, request, *args, **kwargs):
+        """일별 통계 목록 조회"""
+        return super().get(request, *args, **kwargs)
 
 
 class EventLogListCreateView(BaseResponseMixin, generics.ListCreateAPIView):
@@ -41,7 +59,8 @@ class EventLogListCreateView(BaseResponseMixin, generics.ListCreateAPIView):
     ordering_fields = ["timestamp", "event_type", "user"]
 
     def get_queryset(self):
-        # 예시: 이벤트 타입별 개수 집계, 필요한 필드만 조회
+        if getattr(self, "swagger_fake_view", False):
+            return EventLog.objects.none()
         qs = EventLog.objects.select_related("user").only("id", "user", "event_type", "timestamp")
         if self.request.user.is_staff:
             queryset = qs
@@ -56,8 +75,34 @@ class EventLogListCreateView(BaseResponseMixin, generics.ListCreateAPIView):
         if end_timestamp:
             queryset = queryset.filter(timestamp__lte=end_timestamp)
 
-        # queryset = queryset.annotate(event_count=Count('event_type'))  # 집계 예시
         return queryset
+
+    @swagger_auto_schema(
+        operation_summary="이벤트 로그 목록 조회",
+        operation_description="이벤트 로그 목록을 조회합니다. 관리자는 전체, 일반 사용자는 본인 이벤트만 조회할 수 있습니다.",
+        tags=["Analytics"],
+        responses={
+            200: openapi.Response("이벤트 로그 목록을 정상적으로 조회하였습니다."),
+            401: "인증되지 않은 사용자입니다.",
+        },
+    )
+    def get(self, request, *args, **kwargs):
+        """이벤트 로그 목록 조회"""
+        return super().get(request, *args, **kwargs)
+
+    @swagger_auto_schema(
+        operation_summary="이벤트 로그 생성",
+        operation_description="새로운 이벤트 로그를 생성합니다. 이벤트명, 메타데이터 등 입력이 가능합니다.",
+        tags=["Analytics"],
+        responses={
+            201: openapi.Response("이벤트 로그가 정상적으로 생성되었습니다."),
+            400: "요청 데이터가 올바르지 않습니다.",
+            401: "인증되지 않은 사용자입니다.",
+        },
+    )
+    def post(self, request, *args, **kwargs):
+        """이벤트 로그 생성"""
+        return super().post(request, *args, **kwargs)
 
     def perform_create(self, serializer):
         if self.request.user.is_authenticated:
@@ -78,9 +123,26 @@ class EventLogDetailView(generics.RetrieveAPIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
+        if getattr(self, "swagger_fake_view", False):
+            return EventLog.objects.none()
         if self.request.user.is_staff:
             return EventLog.objects.all()
         return EventLog.objects.filter(user=self.request.user)
+
+    @swagger_auto_schema(
+        operation_summary="이벤트 로그 상세 조회",
+        operation_description="특정 이벤트 로그의 상세 정보를 조회합니다.",
+        tags=["Analytics"],
+        responses={
+            200: openapi.Response("이벤트 로그 정보를 정상적으로 조회하였습니다."),
+            401: "인증되지 않은 사용자입니다.",
+            403: "접근 권한이 없습니다.",
+            404: "이벤트 로그를 찾을 수 없습니다.",
+        },
+    )
+    def get(self, request, *args, **kwargs):
+        """이벤트 로그 상세 조회"""
+        return super().get(request, *args, **kwargs)
 
 
 class AnalyticsListView(generics.ListAPIView):

@@ -98,43 +98,8 @@ class RegisterView(BaseResponseMixin, CreateAPIView):
         operation_description="새로운 사용자를 생성하고, 이메일 인증을 위한 이메일을 전송합니다.",
         request_body=RegisterSerializer,
         responses={
-            201: openapi.Schema(
-                type=openapi.TYPE_OBJECT,
-                properties={
-                    "code": openapi.Schema(type=openapi.TYPE_INTEGER, example=SIGNUP_SUCCESS["code"]),
-                    "message": openapi.Schema(type=openapi.TYPE_STRING, example=SIGNUP_SUCCESS["message"]),
-                    "data": openapi.Schema(
-                        type=openapi.TYPE_OBJECT,
-                        properties={
-                            "id": openapi.Schema(type=openapi.TYPE_INTEGER, example=1),
-                            "email": openapi.Schema(type=openapi.TYPE_STRING, example="test@example.com"),
-                            "name": openapi.Schema(type=openapi.TYPE_STRING, example="taejin"),
-                            "nickname": openapi.Schema(type=openapi.TYPE_STRING, example="Lululala"),
-                            "verify_url": openapi.Schema(
-                                type=openapi.TYPE_STRING,
-                                example="http://localhost:8000/api/users/verify/email?code=signed_code",
-                            ),
-                        },
-                    ),
-                },
-            ),
-            400: openapi.Schema(
-                type=openapi.TYPE_OBJECT,
-                properties={
-                    "code": openapi.Schema(
-                        type=openapi.TYPE_INTEGER,
-                        example=SIGNUP_PASSWORD_MISMATCH["code"],
-                    ),
-                    "message": openapi.Schema(
-                        type=openapi.TYPE_STRING,
-                        example=f"{SIGNUP_PASSWORD_MISMATCH['message']} or {WEAK_PASSWORD['message']}",
-                    ),
-                    "data": openapi.Schema(
-                        type=openapi.TYPE_STRING,
-                        example='None or "This password is too short" or "It must contain at least 8 characters." or "This password is too common"',
-                    ),
-                },
-            ),
+            201: openapi.Response("회원가입이 성공적으로 완료되었습니다.", RegisterSerializer),
+            400: "잘못된 요청입니다.",
         },
     )
     def post(self, request):  # 스웨거 데코레이터 사용하기 위해 오버라이드(원래 동작과 동일)
@@ -213,51 +178,9 @@ class VerifyEmailView(BaseResponseMixin, APIView):
         operation_summary="이메일 인증 링크 확인",
         operation_description="이메일에 첨부된 서명된 인증 코드를 확인하여 이메일 인증을 완료합니다.",
         responses={
-            200: openapi.Response(
-                description="이메일 인증 성공",
-                schema=openapi.Schema(
-                    type=openapi.TYPE_OBJECT,
-                    properties={
-                        "code": openapi.Schema(
-                            type=openapi.TYPE_INTEGER,
-                            example=VERIFY_EMAIL_SUCCESS["code"],
-                        ),
-                        "message": openapi.Schema(
-                            type=openapi.TYPE_STRING,
-                            example=VERIFY_EMAIL_SUCCESS["message"],
-                        ),
-                        "data": None,
-                    },
-                ),
-            ),
-            400: openapi.Response(
-                description="유효하지 않은 서명",
-                schema=openapi.Schema(
-                    type=openapi.TYPE_OBJECT,
-                    properties={
-                        "code": openapi.Schema(type=openapi.TYPE_INTEGER, example=INVALID_SIGNATURE["code"]),
-                        "message": openapi.Schema(
-                            type=openapi.TYPE_STRING,
-                            example=INVALID_SIGNATURE["message"],
-                        ),
-                        "data": None,
-                    },
-                ),
-            ),
-            410: openapi.Response(
-                description="인증 코드 만료",
-                schema=openapi.Schema(
-                    type=openapi.TYPE_OBJECT,
-                    properties={
-                        "code": openapi.Schema(type=openapi.TYPE_INTEGER, example=SIGNATURE_EXPIRED["code"]),
-                        "message": openapi.Schema(
-                            type=openapi.TYPE_STRING,
-                            example=SIGNATURE_EXPIRED["message"],
-                        ),
-                        "data": None,
-                    },
-                ),
-            ),
+            200: "이메일 인증 성공",
+            400: "유효하지 않은 서명",
+            410: "인증 코드 만료",
         },
     )
     def get(self, request):
@@ -708,7 +631,9 @@ class EmailVerificationView(APIView):
     permission_classes = [AllowAny]
 
     @swagger_auto_schema(
-        operation_description="이메일 인증",
+        tags=["유저/인증"],
+        operation_summary="이메일 인증",
+        operation_description="이메일 인증을 처리합니다.",
         request_body=EmailVerificationSerializer,
         responses={
             200: "이메일 인증 성공",
@@ -759,6 +684,8 @@ class ResendVerificationEmailView(APIView):
     permission_classes = [AllowAny]
 
     @swagger_auto_schema(
+        tags=["유저/인증"],
+        operation_summary="이메일 인증 메일 재전송",
         operation_description="이메일 인증이 완료되지 않은 사용자에게 인증 이메일을 재전송합니다.",
         request_body=ResendVerificationEmailSerializer,
         responses={
@@ -787,7 +714,7 @@ class ResendVerificationEmailView(APIView):
 
             subject = "[WiStar] 이메일 인증을 완료해주세요."
             message = f"아래 링크를 클릭해 인증을 완료해주세요.\n\n{verify_url}"
-            send_email(subject, message, user.email)
+            send_email_async.delay(subject, message, user.email)
 
             self.logger.info(f"Verification email resent successfully to {user.email}")
             return self.success(message="인증 이메일 전송에 성공했습니다.")
@@ -816,48 +743,9 @@ class UserPasswordChangeAPIView(BaseResponseMixin, APIView):
         operation_description="현재 로그인한 사용자의 비밀번호를 변경합니다.",
         request_body=PasswordChangeSerializer,
         responses={
-            200: openapi.Response(
-                description="비밀번호 변경 성공",
-                schema=openapi.Schema(
-                    type=openapi.TYPE_OBJECT,
-                    properties={
-                        "code": openapi.Schema(type=openapi.TYPE_INTEGER, example=PASSWORD_CHANGED["code"]),
-                        "message": openapi.Schema(
-                            type=openapi.TYPE_STRING,
-                            example=PASSWORD_CHANGED["message"],
-                        ),
-                        "data": None,
-                    },
-                ),
-            ),
-            400: openapi.Response(
-                description="잘못된 요청",
-                schema=openapi.Schema(
-                    type=openapi.TYPE_OBJECT,
-                    properties={
-                        "code": openapi.Schema(
-                            type=openapi.TYPE_INTEGER,
-                            example=INVALID_PROFILE_UPDATE["code"],
-                        ),
-                        "message": openapi.Schema(
-                            type=openapi.TYPE_STRING,
-                            example=INVALID_PROFILE_UPDATE["message"],
-                        ),
-                        "data": None,
-                    },
-                ),
-            ),
-            401: openapi.Response(
-                description="인증되지 않은 사용자",
-                schema=openapi.Schema(
-                    type=openapi.TYPE_OBJECT,
-                    properties={
-                        "code": openapi.Schema(type=openapi.TYPE_INTEGER, example=UNAUTHORIZED["code"]),
-                        "message": openapi.Schema(type=openapi.TYPE_STRING, example=UNAUTHORIZED["message"]),
-                        "data": None,
-                    },
-                ),
-            ),
+            200: "비밀번호 변경 성공",
+            400: "잘못된 요청",
+            401: "인증되지 않은 사용자",
         },
     )
     def post(self, request):
@@ -888,6 +776,7 @@ class PasswordResetView(APIView):
     permission_classes = [AllowAny]
 
     @swagger_auto_schema(
+        tags=["유저"],
         operation_summary="비밀번호 재설정 이메일 요청",
         operation_description="등록된 이메일로 비밀번호 재설정 링크를 전송합니다.",
         request_body=openapi.Schema(
@@ -913,7 +802,7 @@ class PasswordResetView(APIView):
 
             subject = "[WiStar] 비밀번호 재설정 링크입니다."
             message = f"다음 링크를 사용하여 비밀번호를 재설정하세요:\n\n{reset_url}"
-            send_email(subject, message, user.email)
+            send_email_async.delay(subject, message, user.email)
 
             self.logger.info(f"Password reset email sent to {user.email}")
             return self.success(message="비밀번호 재설정 이메일이 전송되었습니다.")
@@ -935,12 +824,13 @@ class PasswordResetConfirmView(APIView):
     permission_classes = [AllowAny]
 
     @swagger_auto_schema(
+        tags=["유저"],
         operation_summary="비밀번호 재설정 확인",
         operation_description="이메일로 전송된 토큰과 새 비밀번호를 사용하여 비밀번호를 재설정합니다.",
         request_body=PasswordResetConfirmSerializer,
         responses={
             200: "비밀번호 재설정 성공",
-            400: "잘못된 요청 (예: 토큰 만료, 유효하지 않은 비밀번호)",
+            400: "잘못된 요청(예: 토큰 만료, 유효하지 않은 비밀번호)",
             404: "사용자를 찾을 수 없음",
         },
     )
@@ -993,9 +883,9 @@ class UserListView(BaseResponseMixin, APIView):
         operation_summary="사용자 목록 조회",
         operation_description="관리자가 모든 사용자의 목록을 조회합니다.",
         responses={
-            200: UserSerializer(many=True),
-            401: "인증되지 않은 사용자",
-            403: "권한이 없는 사용자",
+            200: openapi.Response("사용자 목록을 성공적으로 반환합니다.", UserSerializer(many=True)),
+            401: "인증되지 않은 사용자입니다.",
+            403: "권한이 없는 사용자입니다.",
         },
     )
     def get(self, request):
@@ -1024,8 +914,8 @@ class UserProfileView(BaseResponseMixin, APIView):
         operation_summary="프로필 조회",
         operation_description="현재 로그인한 사용자의 프로필을 조회합니다.",
         responses={
-            200: UserSerializer,
-            401: "인증되지 않은 사용자",
+            200: openapi.Response("프로필 정보를 성공적으로 반환합니다.", UserSerializer),
+            401: "인증되지 않은 사용자입니다.",
         },
     )
     def get(self, request):
@@ -1043,9 +933,9 @@ class UserProfileView(BaseResponseMixin, APIView):
         operation_description="현재 로그인한 사용자의 프로필을 수정합니다.",
         request_body=ProfileUpdateSerializer,
         responses={
-            200: UserSerializer,
-            400: "잘못된 요청",
-            401: "인증되지 않은 사용자",
+            200: openapi.Response("프로필이 성공적으로 수정되었습니다.", UserSerializer),
+            400: "잘못된 요청입니다.",
+            401: "인증되지 않은 사용자입니다.",
         },
     )
     def put(self, request):
@@ -1082,8 +972,18 @@ class UserProfileView(BaseResponseMixin, APIView):
             )
             raise ServerError() from e
 
+    @swagger_auto_schema(
+        tags=["유저"],
+        operation_summary="프로필 부분 수정",
+        operation_description="현재 로그인한 사용자의 프로필을 부분 수정합니다.",
+        request_body=ProfileUpdateSerializer,
+        responses={
+            200: openapi.Response("프로필이 성공적으로 수정되었습니다.", UserSerializer),
+            400: "잘못된 요청입니다.",
+            401: "인증되지 않은 사용자입니다.",
+        },
+    )
     def patch(self, request):
-        # PATCH는 put과 동일하게 partial update
         serializer = ProfileUpdateSerializer(request.user, data=request.data, partial=True)
         try:
             serializer.is_valid(raise_exception=True)
@@ -1117,6 +1017,15 @@ class UserProfileView(BaseResponseMixin, APIView):
             )
             raise ServerError() from e
 
+    @swagger_auto_schema(
+        tags=["유저"],
+        operation_summary="프로필 비활성화(탈퇴)",
+        operation_description="현재 로그인한 사용자의 프로필을 비활성화(소프트 삭제)합니다.",
+        responses={
+            200: "프로필이 비활성화되었습니다.",
+            401: "인증되지 않은 사용자입니다.",
+        },
+    )
     def delete(self, request):
         # 프로필 비활성화(soft delete)
         user = request.user
@@ -1137,32 +1046,13 @@ class NicknameCheckView(APIView):
     throttle_classes = [LoginAttemptThrottle]
 
     @swagger_auto_schema(
+        tags=["유저"],
         operation_summary="닉네임 중복 체크",
-        operation_description="닉네임의 중복 여부를 체크합니다",
+        operation_description="닉네임의 중복 여부를 체크합니다.",
         request_body=NicknameCheckSerializer,
         responses={
-            200: openapi.Response(
-                description="닉네임 사용 가능",
-                schema=openapi.Schema(
-                    type=openapi.TYPE_OBJECT,
-                    properties={
-                        "code": openapi.Schema(type=openapi.TYPE_INTEGER, example=200),
-                        "message": openapi.Schema(type=openapi.TYPE_STRING, example="사용 가능한 닉네임입니다."),
-                        "data": openapi.Schema(type=openapi.TYPE_OBJECT, example=None),
-                    },
-                ),
-            ),
-            400: openapi.Response(
-                description="닉네임 중복",
-                schema=openapi.Schema(
-                    type=openapi.TYPE_OBJECT,
-                    properties={
-                        "code": openapi.Schema(type=openapi.TYPE_INTEGER, example=400),
-                        "message": openapi.Schema(type=openapi.TYPE_STRING, example=DUPLICATE_NICKNAME["message"]),
-                        "data": openapi.Schema(type=openapi.TYPE_OBJECT, example=None),
-                    },
-                ),
-            ),
+            200: "사용 가능한 닉네임입니다.",
+            400: "닉네임 중복",
         },
     )
     def post(self, request):

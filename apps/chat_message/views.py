@@ -2,6 +2,8 @@ from datetime import timedelta
 
 from django.utils import timezone
 from django_filters.rest_framework import DjangoFilterBackend
+from drf_yasg import openapi
+from drf_yasg.utils import swagger_auto_schema
 from rest_framework import filters, generics, permissions
 
 from utils.response import BaseResponseMixin
@@ -24,6 +26,8 @@ class ChatMessageListCreateView(BaseResponseMixin, generics.ListCreateAPIView):
     pagination_class = None  # 페이지네이션 비활성화
 
     def get_queryset(self):
+        if getattr(self, "swagger_fake_view", False):
+            return ChatMessage.objects.none()
         chat_room_id = self.kwargs["chat_room_pk"]
         return ChatMessage.objects.filter(chat_room__id=chat_room_id).order_by("timestamp")
 
@@ -35,15 +39,32 @@ class ChatMessageListCreateView(BaseResponseMixin, generics.ListCreateAPIView):
     def perform_create(self, serializer):
         serializer.save(sender=self.request.user)
 
-    def create(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        self.perform_create(serializer)
-        data = serializer.data
-        self.logger.info(
-            f"ChatMessage created by {request.user.email if request.user.is_authenticated else 'anonymous'}"
-        )
-        return self.success(data=data, message="채팅 메시지가 생성되었습니다.", status=201)
+    @swagger_auto_schema(
+        operation_summary="채팅 메시지 목록 조회",
+        operation_description="특정 채팅방의 메시지 목록을 조회합니다.",
+        tags=["ChatMessage"],
+        responses={
+            200: openapi.Response("채팅 메시지 목록을 정상적으로 조회하였습니다."),
+            401: "인증되지 않은 사용자입니다.",
+            404: "채팅방을 찾을 수 없습니다.",
+        },
+    )
+    def get(self, request, *args, **kwargs):
+        return super().get(request, *args, **kwargs)
+
+    @swagger_auto_schema(
+        operation_summary="채팅 메시지 생성",
+        operation_description="특정 채팅방에 메시지를 전송합니다.",
+        tags=["ChatMessage"],
+        responses={
+            201: openapi.Response("채팅 메시지가 정상적으로 생성되었습니다."),
+            400: "요청 데이터가 올바르지 않습니다.",
+            401: "인증되지 않은 사용자입니다.",
+            404: "채팅방을 찾을 수 없습니다.",
+        },
+    )
+    def post(self, request, *args, **kwargs):
+        return super().post(request, *args, **kwargs)
 
 
 class ChatMessageDetailView(BaseResponseMixin, generics.RetrieveUpdateDestroyAPIView):
@@ -52,8 +73,9 @@ class ChatMessageDetailView(BaseResponseMixin, generics.RetrieveUpdateDestroyAPI
     lookup_field = "pk"
 
     def get_queryset(self):
+        if getattr(self, "swagger_fake_view", False):
+            return ChatMessage.objects.none()
         chat_room_id = self.kwargs["chat_room_pk"]
-        # sender, chat_room 등 select_related로 최적화
         return ChatMessage.objects.select_related("sender", "chat_room").filter(chat_room__id=chat_room_id)
 
     def get_serializer_class(self):
@@ -91,21 +113,45 @@ class ChatMessageDetailView(BaseResponseMixin, generics.RetrieveUpdateDestroyAPI
             f"ChatMessage deleted by {self.request.user.email if self.request.user.is_authenticated else 'anonymous'}"
         )
 
-    def retrieve(self, request, *args, **kwargs):
-        instance = self.get_object()
-        serializer = self.get_serializer(instance)
-        return self.success(data=serializer.data, message="채팅 메시지 상세 정보를 조회했습니다.")
+    @swagger_auto_schema(
+        operation_summary="채팅 메시지 상세 조회",
+        operation_description="특정 채팅 메시지의 상세 정보를 조회합니다.",
+        tags=["ChatMessage"],
+        responses={
+            200: openapi.Response("채팅 메시지 정보를 정상적으로 조회하였습니다."),
+            401: "인증되지 않은 사용자입니다.",
+            403: "접근 권한이 없습니다.",
+            404: "채팅 메시지를 찾을 수 없습니다.",
+        },
+    )
+    def get(self, request, *args, **kwargs):
+        return super().get(request, *args, **kwargs)
 
-    def update(self, request, *args, **kwargs):
-        partial = kwargs.pop("partial", False)
-        instance = self.get_object()
-        serializer = self.get_serializer(instance, data=request.data, partial=partial)
-        serializer.is_valid(raise_exception=True)
-        self.perform_update(serializer)
-        response_serializer = ChatMessageSerializer(instance)
-        return self.success(data=response_serializer.data, message="채팅 메시지가 수정되었습니다.")
+    @swagger_auto_schema(
+        operation_summary="채팅 메시지 수정",
+        operation_description="특정 채팅 메시지의 내용을 수정합니다. 작성자만 수정할 수 있습니다.",
+        tags=["ChatMessage"],
+        responses={
+            200: openapi.Response("채팅 메시지가 정상적으로 수정되었습니다."),
+            400: "요청 데이터가 올바르지 않습니다.",
+            401: "인증되지 않은 사용자입니다.",
+            403: "접근 권한이 없습니다.",
+            404: "채팅 메시지를 찾을 수 없습니다.",
+        },
+    )
+    def put(self, request, *args, **kwargs):
+        return super().put(request, *args, **kwargs)
 
-    def destroy(self, request, *args, **kwargs):
-        instance = self.get_object()
-        self.perform_destroy(instance)
-        return self.success(data=None, message="채팅 메시지가 삭제되었습니다.", status=204)
+    @swagger_auto_schema(
+        operation_summary="채팅 메시지 삭제",
+        operation_description="특정 채팅 메시지를 삭제합니다. 작성자만 삭제할 수 있습니다.",
+        tags=["ChatMessage"],
+        responses={
+            204: openapi.Response("채팅 메시지가 정상적으로 삭제되었습니다."),
+            401: "인증되지 않은 사용자입니다.",
+            403: "접근 권한이 없습니다.",
+            404: "채팅 메시지를 찾을 수 없습니다.",
+        },
+    )
+    def delete(self, request, *args, **kwargs):
+        return super().delete(request, *args, **kwargs)

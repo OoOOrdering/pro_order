@@ -1,6 +1,8 @@
 from django.db.models import Count
 from django.utils import timezone
 from django_filters.rest_framework import DjangoFilterBackend
+from drf_yasg import openapi
+from drf_yasg.utils import swagger_auto_schema
 from rest_framework import filters, generics, permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -29,7 +31,8 @@ class ChatRoomListCreateView(BaseResponseMixin, generics.ListCreateAPIView):
     ordering_fields = ["created_at", "updated_at", "last_message_at", "name"]
 
     def get_queryset(self):
-        # 예시: 채팅방별 참여자 수 집계, 필요한 필드만 조회
+        if getattr(self, "swagger_fake_view", False):
+            return ChatRoom.objects.none()
         return (
             ChatRoom.objects.filter(
                 room_participants__user=self.request.user,
@@ -41,6 +44,33 @@ class ChatRoomListCreateView(BaseResponseMixin, generics.ListCreateAPIView):
             .annotate(participant_count=Count("participants"))
             .distinct()
         )
+
+    @swagger_auto_schema(
+        operation_summary="채팅방 목록 조회",
+        operation_description="본인이 참여 중인 채팅방 목록을 조회합니다. 검색, 정렬, 필터링이 가능합니다.",
+        tags=["ChatRoom"],
+        responses={
+            200: openapi.Response("채팅방 목록을 정상적으로 조회하였습니다."),
+            401: "인증되지 않은 사용자입니다.",
+        },
+    )
+    def get(self, request, *args, **kwargs):
+        """채팅방 목록 조회"""
+        return super().get(request, *args, **kwargs)
+
+    @swagger_auto_schema(
+        operation_summary="채팅방 생성",
+        operation_description="새로운 채팅방을 생성합니다. 생성 시 본인이 방장으로 등록됩니다.",
+        tags=["ChatRoom"],
+        responses={
+            201: openapi.Response("채팅방이 정상적으로 생성되었습니다."),
+            400: "요청 데이터가 올바르지 않습니다.",
+            401: "인증되지 않은 사용자입니다.",
+        },
+    )
+    def post(self, request, *args, **kwargs):
+        """채팅방 생성"""
+        return super().post(request, *args, **kwargs)
 
     def get_serializer_class(self):
         if self.request.method == "POST":
@@ -67,6 +97,8 @@ class ChatRoomDetailView(generics.RetrieveUpdateDestroyAPIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
+        if getattr(self, "swagger_fake_view", False):
+            return ChatRoom.objects.none()
         return ChatRoom.objects.all()
 
     def get_serializer_class(self):
@@ -80,6 +112,52 @@ class ChatRoomDetailView(generics.RetrieveUpdateDestroyAPIView):
         if request.method in ["PUT", "PATCH", "DELETE"]:
             if obj.created_by != request.user:
                 self.permission_denied(request, message="채팅방 생성자만 수정/삭제할 수 있습니다.")
+
+    @swagger_auto_schema(
+        operation_summary="채팅방 상세 조회",
+        operation_description="특정 채팅방의 상세 정보를 조회합니다.",
+        tags=["ChatRoom"],
+        responses={
+            200: openapi.Response("채팅방 정보를 정상적으로 조회하였습니다."),
+            401: "인증되지 않은 사용자입니다.",
+            403: "접근 권한이 없습니다.",
+            404: "채팅방을 찾을 수 없습니다.",
+        },
+    )
+    def get(self, request, *args, **kwargs):
+        """채팅방 상세 조회"""
+        return super().get(request, *args, **kwargs)
+
+    @swagger_auto_schema(
+        operation_summary="채팅방 수정",
+        operation_description="채팅방의 정보를 수정합니다. 방장만 수정할 수 있습니다.",
+        tags=["ChatRoom"],
+        responses={
+            200: openapi.Response("채팅방 정보가 정상적으로 수정되었습니다."),
+            400: "요청 데이터가 올바르지 않습니다.",
+            401: "인증되지 않은 사용자입니다.",
+            403: "접근 권한이 없습니다.",
+            404: "채팅방을 찾을 수 없습니다.",
+        },
+    )
+    def put(self, request, *args, **kwargs):
+        """채팅방 수정"""
+        return super().put(request, *args, **kwargs)
+
+    @swagger_auto_schema(
+        operation_summary="채팅방 삭제",
+        operation_description="채팅방을 삭제합니다. 방장만 삭제할 수 있습니다.",
+        tags=["ChatRoom"],
+        responses={
+            204: openapi.Response("채팅방이 정상적으로 삭제되었습니다."),
+            401: "인증되지 않은 사용자입니다.",
+            403: "접근 권한이 없습니다.",
+            404: "채팅방을 찾을 수 없습니다.",
+        },
+    )
+    def delete(self, request, *args, **kwargs):
+        """채팅방 삭제"""
+        return super().delete(request, *args, **kwargs)
 
 
 class ChatRoomParticipantAddView(APIView):

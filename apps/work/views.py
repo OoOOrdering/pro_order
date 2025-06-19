@@ -3,6 +3,8 @@ import logging
 from django.db.models import Count
 from django.utils import timezone
 from django_filters.rest_framework import DjangoFilterBackend
+from drf_yasg import openapi
+from drf_yasg.utils import swagger_auto_schema
 from rest_framework import filters, generics, permissions
 
 from utils.response import BaseResponseMixin
@@ -31,13 +33,40 @@ class WorkListCreateView(BaseResponseMixin, generics.ListCreateAPIView):
     ordering_fields = ["created_at", "due_date", "status"]
 
     def get_queryset(self):
-        # 예시: 필요한 필드만 조회
+        if getattr(self, "swagger_fake_view", False):
+            return Work.objects.none()
         qs = Work.objects.select_related("assignee", "order").only(
             "id", "assignee", "order", "title", "status", "created_at"
         )
         if self.request.user.is_staff:
             return qs
         return qs.filter(assignee=self.request.user)
+
+    @swagger_auto_schema(
+        operation_summary="작업 목록 조회",
+        operation_description="작업 목록을 조회합니다. (관리자는 전체, 일반 사용자는 본인에게 할당된 작업만 조회)",
+        tags=["Work"],
+        responses={
+            200: openapi.Response("작업 목록을 정상적으로 조회하였습니다."),
+            401: "인증되지 않은 사용자입니다.",
+        },
+    )
+    def get(self, request, *args, **kwargs):
+        return super().get(request, *args, **kwargs)
+
+    @swagger_auto_schema(
+        operation_summary="작업 생성",
+        operation_description="새로운 작업을 생성합니다. (관리자만 가능)",
+        tags=["Work"],
+        responses={
+            201: openapi.Response("작업이 정상적으로 생성되었습니다."),
+            400: "요청 데이터가 올바르지 않습니다.",
+            401: "인증되지 않은 사용자입니다.",
+            403: "접근 권한이 없습니다.",
+        },
+    )
+    def post(self, request, *args, **kwargs):
+        return super().post(request, *args, **kwargs)
 
     def get_serializer_class(self):
         if self.request.method == "POST":
@@ -73,10 +102,70 @@ class WorkDetailView(BaseResponseMixin, generics.RetrieveUpdateDestroyAPIView):
     lookup_field = "pk"
 
     def get_queryset(self):
+        if getattr(self, "swagger_fake_view", False):
+            return Work.objects.none()
         qs = Work.objects.select_related("assignee", "order")
         if self.request.user.is_staff:
             return qs
         return qs.filter(assignee=self.request.user)
+
+    @swagger_auto_schema(
+        operation_summary="작업 상세 조회",
+        operation_description="특정 작업의 상세 정보를 조회합니다.",
+        tags=["Work"],
+        responses={
+            200: openapi.Response("작업 정보를 정상적으로 조회하였습니다."),
+            401: "인증되지 않은 사용자입니다.",
+            403: "접근 권한이 없습니다.",
+            404: "작업을 찾을 수 없습니다.",
+        },
+    )
+    def get(self, request, *args, **kwargs):
+        return super().get(request, *args, **kwargs)
+
+    @swagger_auto_schema(
+        operation_summary="작업 수정",
+        operation_description="작업 정보를 수정합니다. (관리자 또는 담당자만 가능)",
+        tags=["Work"],
+        responses={
+            200: openapi.Response("작업 정보가 정상적으로 수정되었습니다."),
+            400: "요청 데이터가 올바르지 않습니다.",
+            401: "인증되지 않은 사용자입니다.",
+            403: "접근 권한이 없습니다.",
+            404: "작업을 찾을 수 없습니다.",
+        },
+    )
+    def put(self, request, *args, **kwargs):
+        return super().put(request, *args, **kwargs)
+
+    @swagger_auto_schema(
+        operation_summary="작업 부분 수정",
+        operation_description="작업 정보를 부분 수정합니다. (관리자 또는 담당자만 가능)",
+        tags=["Work"],
+        responses={
+            200: openapi.Response("작업 정보가 정상적으로 수정되었습니다."),
+            400: "요청 데이터가 올바르지 않습니다.",
+            401: "인증되지 않은 사용자입니다.",
+            403: "접근 권한이 없습니다.",
+            404: "작업을 찾을 수 없습니다.",
+        },
+    )
+    def patch(self, request, *args, **kwargs):
+        return super().patch(request, *args, **kwargs)
+
+    @swagger_auto_schema(
+        operation_summary="작업 삭제",
+        operation_description="작업을 삭제합니다. (관리자 또는 담당자만 가능)",
+        tags=["Work"],
+        responses={
+            204: openapi.Response("작업이 정상적으로 삭제되었습니다."),
+            401: "인증되지 않은 사용자입니다.",
+            403: "접근 권한이 없습니다.",
+            404: "작업을 찾을 수 없습니다.",
+        },
+    )
+    def delete(self, request, *args, **kwargs):
+        return super().delete(request, *args, **kwargs)
 
     def get_serializer_class(self):
         if self.request.method in ["PUT", "PATCH"]:

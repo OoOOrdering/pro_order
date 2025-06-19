@@ -1,4 +1,6 @@
 from django_filters.rest_framework import DjangoFilterBackend
+from drf_yasg import openapi
+from drf_yasg.utils import swagger_auto_schema
 from rest_framework import filters, generics, permissions, serializers, status
 from rest_framework.response import Response
 
@@ -21,18 +23,16 @@ class CSReplyListCreateView(BaseResponseMixin, generics.ListCreateAPIView):
     ordering_fields = ["created_at", "updated_at"]
 
     def get_queryset(self):
+        if getattr(self, "swagger_fake_view", False):
+            return CSReply.objects.none()
         post_pk = self.kwargs.get("cs_post_pk")
         try:
             cs_post = CSPost.objects.get(pk=post_pk)
         except CSPost.DoesNotExist:
             return CSReply.objects.none()
-
-        # 관리자는 모든 답변 조회, 사용자는 본인 문의글에 대한 답변만 조회
         queryset = CSReply.objects.select_related("author", "post").filter(post=cs_post)
         if not self.request.user.is_staff:
-            # 일반 사용자는 자신이 작성한 CS Post의 답변만 볼 수 있음
             queryset = queryset.filter(post__author=self.request.user)
-
         return queryset
 
     def get_serializer_class(self):
@@ -63,6 +63,36 @@ class CSReplyListCreateView(BaseResponseMixin, generics.ListCreateAPIView):
         data = response_serializer.data
         self.logger.info(f"CSReply created by {request.user.email if request.user.is_authenticated else 'anonymous'}")
         return self.success(data=data, message="CS 답변이 생성되었습니다.", status=201)
+
+    @swagger_auto_schema(
+        operation_summary="CS 답변 목록 조회",
+        operation_description="특정 문의글에 대한 답변 목록을 조회합니다. (관리자는 전체, 일반 사용자는 본인 문의글에 대한 답변만 조회)",
+        tags=["CSReply"],
+        responses={
+            200: openapi.Response("CS 답변 목록을 정상적으로 조회하였습니다."),
+            401: "인증되지 않은 사용자입니다.",
+            404: "문의글을 찾을 수 없습니다.",
+        },
+    )
+    def get(self, request, *args, **kwargs):
+        """CS 답변 목록 조회"""
+        return super().get(request, *args, **kwargs)
+
+    @swagger_auto_schema(
+        operation_summary="CS 답변 작성",
+        operation_description="특정 문의글에 대해 답변을 작성합니다. (관리자만 가능)",
+        tags=["CSReply"],
+        responses={
+            201: openapi.Response("CS 답변이 정상적으로 작성되었습니다."),
+            400: "요청 데이터가 올바르지 않습니다.",
+            401: "인증되지 않은 사용자입니다.",
+            403: "접근 권한이 없습니다.",
+            404: "문의글을 찾을 수 없습니다.",
+        },
+    )
+    def post(self, request, *args, **kwargs):
+        """CS 답변 작성"""
+        return super().post(request, *args, **kwargs)
 
     def list(self, request, *args, **kwargs):
         queryset = self.filter_queryset(self.get_queryset())

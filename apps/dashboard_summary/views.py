@@ -1,3 +1,5 @@
+from drf_yasg import openapi
+from drf_yasg.utils import swagger_auto_schema
 from rest_framework import generics, permissions
 from rest_framework.response import Response
 
@@ -12,6 +14,25 @@ class DashboardSummaryListView(BaseResponseMixin, generics.ListAPIView):
     serializer_class = DashboardSummarySerializer
     permission_classes = [permissions.IsAdminUser]  # 관리자만 접근 가능
     filterset_fields = ["user"]  # 사용자별 필터링
+
+    @swagger_auto_schema(
+        operation_summary="대시보드 요약 정보 목록 조회",
+        operation_description="관리자 권한으로 전체 대시보드 요약 정보 목록을 조회합니다. 사용자별 필터링이 가능합니다.",
+        tags=["Dashboard"],
+        responses={
+            200: openapi.Response("대시보드 요약 정보 목록 조회 성공", DashboardSummarySerializer(many=True)),
+            401: "인증 필요",
+            403: "관리자 권한 필요",
+        },
+    )
+    def get(self, request, *args, **kwargs):
+        """대시보드 요약 정보 목록 조회"""
+        return super().get(request, *args, **kwargs)
+
+    def get_queryset(self):
+        if getattr(self, "swagger_fake_view", False):
+            return DashboardSummary.objects.none()
+        return super().get_queryset()
 
     def list(self, request, *args, **kwargs):
         queryset = self.filter_queryset(self.get_queryset())
@@ -38,6 +59,26 @@ class DashboardSummaryListView(BaseResponseMixin, generics.ListAPIView):
 class DashboardSummaryView(BaseResponseMixin, generics.RetrieveAPIView):
     serializer_class = DashboardSummarySerializer
     permission_classes = [permissions.IsAdminUser]  # 관리자만 접근 가능
+
+    @swagger_auto_schema(
+        operation_summary="대시보드 요약 정보 상세 조회",
+        operation_description="특정 대시보드 요약 정보의 상세 내용을 조회합니다. 관리자만 전체, 일반 사용자는 본인 정보만 조회할 수 있습니다.",
+        tags=["Dashboard"],
+        responses={
+            200: openapi.Response("대시보드 요약 정보 상세 조회 성공", DashboardSummarySerializer),
+            401: "인증 필요",
+            403: "관리자 권한 필요",
+            404: "대시보드 정보를 찾을 수 없음",
+        },
+    )
+    def get(self, request, *args, **kwargs):
+        """대시보드 요약 정보 상세 조회"""
+        return super().get(request, *args, **kwargs)
+
+    def get_queryset(self):
+        if getattr(self, "swagger_fake_view", False):
+            return DashboardSummary.objects.none()
+        return super().get_queryset()
 
     def get_object(self):
         # 전역 대시보드 요약의 경우 user가 None인 객체를 반환

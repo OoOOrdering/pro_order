@@ -1,5 +1,6 @@
 import logging
 
+from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework import status
 from rest_framework.generics import GenericAPIView
@@ -31,8 +32,9 @@ class ImageUploadView(BaseResponseMixin, GenericAPIView):
         operation_description="이미지를 업로드하고 썸네일을 생성합니다.",
         request_body=ImageUploadSerializer,
         responses={
-            201: "업로드 성공",
-            400: "유효하지 않은 요청",
+            201: openapi.Response("이미지가 정상적으로 업로드되었습니다."),
+            400: "요청 데이터가 올바르지 않습니다.",
+            401: "인증되지 않은 사용자입니다.",
         },
     )
     def post(self, request):
@@ -62,8 +64,9 @@ class ImageUploadView(BaseResponseMixin, GenericAPIView):
         operation_description="업로드된 이미지를 삭제합니다.",
         request_body=ImageUploadSerializer,
         responses={
-            200: "삭제 성공",
-            400: "삭제 실패 또는 잘못된 요청",
+            200: openapi.Response("이미지가 정상적으로 삭제되었습니다."),
+            400: "이미지 삭제에 실패하였습니다.",
+            401: "인증되지 않은 사용자입니다.",
         },
     )
     def delete(self, request, *args, **kwargs):

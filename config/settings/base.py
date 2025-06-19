@@ -60,6 +60,7 @@ THIRD_PARTY_APPS = [
     "rest_framework_simplejwt",
     "django_filters",
     "corsheaders",
+    "drf_yasg",
 ]
 
 PROJECT_APPS = [
@@ -116,7 +117,7 @@ TEMPLATES = [
 
 # Auth settings
 AUTH_USER_MODEL = "user.User"
-LOGIN_URL = "/api/v1/login/"
+LOGIN_URL = "/login/"
 LOGIN_REDIRECT_URL = "/"
 
 # Logging
@@ -357,6 +358,23 @@ CELERY_ACCEPT_CONTENT = ["json"]
 CELERY_TASK_SERIALIZER = "json"
 CELERY_RESULT_SERIALIZER = "json"
 CELERY_TIMEZONE = TIME_ZONE
+
+# Celery Beat 스케줄 예시 (알림 리마인더, 예약 작업 등)
+from celery.schedules import crontab
+
+CELERY_BEAT_SCHEDULE = {
+    # 매일 자정에 오래된 알림 자동 삭제
+    "daily_cleanup": {
+        "task": "apps.notification.tasks.daily_cleanup",
+        "schedule": crontab(minute=0, hour=0),
+    },
+    # 예시: 매일 오전 9시에 특정 사용자에게 리마인더 알림 전송
+    # "send_reminder_notification": {
+    #     "task": "apps.notification.tasks.send_reminder_notification",
+    #     "schedule": crontab(minute=0, hour=9),
+    #     "args": [1, "리마인더", "오늘은 중요한 일이 있습니다!"]
+    # },
+}
 
 # --- Sentry 연동 (운영 환경에서만 활성화 권장) ---
 SENTRY_DSN = ENV.get("SENTRY_DSN", "")

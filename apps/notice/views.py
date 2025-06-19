@@ -3,6 +3,8 @@ import typing
 
 from django.db.models import Count, Q
 from django_filters.rest_framework import DjangoFilterBackend
+from drf_yasg import openapi
+from drf_yasg.utils import swagger_auto_schema
 from rest_framework import filters, generics, permissions
 from rest_framework.response import Response
 
@@ -45,12 +47,8 @@ class NoticeListCreateView(BaseResponseMixin, generics.ListCreateAPIView):
     ordering: typing.ClassVar = ["-is_important", "-created_at"]
 
     def get_queryset(self):
-        """
-        요청 파라미터에 따라 필터링된 공지사항 쿼리셋을 반환합니다.
-
-        'search' 쿼리 파라미터가 있을 경우 제목, 내용, 작성자 이름으로 검색합니다.
-        """
-        # 예시: 필요한 필드만 조회
+        if getattr(self, "swagger_fake_view", False):
+            return Notice.objects.none()
         queryset = Notice.objects.only(
             "id",
             "title",
@@ -59,12 +57,9 @@ class NoticeListCreateView(BaseResponseMixin, generics.ListCreateAPIView):
             "is_published",
             "created_at",
         )
-
-        # 검색어가 있는 경우
         search_query = self.request.query_params.get("search", "")
         if search_query:
             queryset = queryset.filter(Q(title__icontains=search_query) | Q(content__icontains=search_query))
-
         return queryset
 
     def get_serializer_class(self):
@@ -100,6 +95,32 @@ class NoticeListCreateView(BaseResponseMixin, generics.ListCreateAPIView):
             return self.success(data={"results": serializer.data}, message="공지사항 목록 조회 성공")
         serializer = self.get_serializer(queryset, many=True)
         return self.success(data={"results": serializer.data}, message="공지사항 목록 조회 성공")
+
+    @swagger_auto_schema(
+        operation_summary="공지사항 목록 조회",
+        operation_description="공지사항 목록을 조회합니다.",
+        tags=["Notice"],
+        responses={
+            200: openapi.Response("공지사항 목록을 정상적으로 조회하였습니다."),
+            401: "인증되지 않은 사용자입니다.",
+        },
+    )
+    def get(self, request, *args, **kwargs):
+        return super().get(request, *args, **kwargs)
+
+    @swagger_auto_schema(
+        operation_summary="공지사항 생성",
+        operation_description="새로운 공지사항을 생성합니다. (관리자만 가능)",
+        tags=["Notice"],
+        responses={
+            201: openapi.Response("공지사항이 정상적으로 생성되었습니다."),
+            400: "요청 데이터가 올바르지 않습니다.",
+            401: "인증되지 않은 사용자입니다.",
+            403: "접근 권한이 없습니다.",
+        },
+    )
+    def post(self, request, *args, **kwargs):
+        return super().post(request, *args, **kwargs)
 
 
 class NoticeDetailView(BaseResponseMixin, generics.RetrieveUpdateDestroyAPIView):
@@ -152,6 +173,64 @@ class NoticeDetailView(BaseResponseMixin, generics.RetrieveUpdateDestroyAPIView)
         serializer = self.get_serializer(instance)
         return self.success(data=serializer.data, message="공지사항 상세 조회 성공")
 
+    @swagger_auto_schema(
+        operation_summary="공지사항 상세 조회",
+        operation_description="특정 공지사항의 상세 정보를 조회합니다.",
+        tags=["Notice"],
+        responses={
+            200: openapi.Response("공지사항 정보를 정상적으로 조회하였습니다."),
+            401: "인증되지 않은 사용자입니다.",
+            403: "접근 권한이 없습니다.",
+            404: "공지사항을 찾을 수 없습니다.",
+        },
+    )
+    def get(self, request, *args, **kwargs):
+        return super().get(request, *args, **kwargs)
+
+    @swagger_auto_schema(
+        operation_summary="공지사항 수정",
+        operation_description="공지사항 정보를 수정합니다. (작성자만 가능)",
+        tags=["Notice"],
+        responses={
+            200: openapi.Response("공지사항 정보가 정상적으로 수정되었습니다."),
+            400: "요청 데이터가 올바르지 않습니다.",
+            401: "인증되지 않은 사용자입니다.",
+            403: "접근 권한이 없습니다.",
+            404: "공지사항을 찾을 수 없습니다.",
+        },
+    )
+    def put(self, request, *args, **kwargs):
+        return super().put(request, *args, **kwargs)
+
+    @swagger_auto_schema(
+        operation_summary="공지사항 부분 수정",
+        operation_description="공지사항 정보를 부분 수정합니다. (작성자만 가능)",
+        tags=["Notice"],
+        responses={
+            200: openapi.Response("공지사항 정보가 정상적으로 수정되었습니다."),
+            400: "요청 데이터가 올바르지 않습니다.",
+            401: "인증되지 않은 사용자입니다.",
+            403: "접근 권한이 없습니다.",
+            404: "공지사항을 찾을 수 없습니다.",
+        },
+    )
+    def patch(self, request, *args, **kwargs):
+        return super().patch(request, *args, **kwargs)
+
+    @swagger_auto_schema(
+        operation_summary="공지사항 삭제",
+        operation_description="공지사항을 삭제합니다. (작성자만 가능)",
+        tags=["Notice"],
+        responses={
+            204: openapi.Response("공지사항이 정상적으로 삭제되었습니다."),
+            401: "인증되지 않은 사용자입니다.",
+            403: "접근 권한이 없습니다.",
+            404: "공지사항을 찾을 수 없습니다.",
+        },
+    )
+    def delete(self, request, *args, **kwargs):
+        return super().delete(request, *args, **kwargs)
+
 
 class RecentNoticeListView(BaseResponseMixin, generics.ListAPIView):
     logger = logging.getLogger("apps")
@@ -173,3 +252,10 @@ class RecentNoticeListView(BaseResponseMixin, generics.ListAPIView):
         queryset = self.get_queryset()
         serializer = self.get_serializer(queryset, many=True)
         return self.success(data={"results": serializer.data}, message="최근 공지사항 목록 조회 성공")
+
+    @swagger_auto_schema(
+        operation_summary="최근 공지사항 목록 조회",
+        operation_description="최근 게시된 공지사항 중 상위 5개를 조회합니다.",
+    )
+    def get(self, request, *args, **kwargs):
+        return super().get(request, *args, **kwargs)
