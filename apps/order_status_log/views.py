@@ -38,7 +38,13 @@ class OrderStatusLogListCreateView(generics.ListCreateAPIView):
         },
     )
     def get(self, request, *args, **kwargs):
-        return super().get(request, *args, **kwargs)
+        queryset = self.filter_queryset(self.get_queryset())
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = OrderStatusLogListSerializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+        serializer = OrderStatusLogListSerializer(queryset, many=True)
+        return Response(serializer.data)
 
     @swagger_auto_schema(
         operation_summary="주문 상태 변경 이력 직접 생성 불가",

@@ -7,6 +7,8 @@ class OrderStatusLogListSerializer(serializers.ModelSerializer):
     changed_by_email = serializers.EmailField(source="changed_by.email", read_only=True)
     changed_by_nickname = serializers.CharField(source="changed_by.nickname", read_only=True)
     order_title = serializers.CharField(source="order.title", read_only=True)
+    # 테스트에서 기대하는 'id', 'previous_status', 'new_status', 'changed_by', 'reason', 'memo', 'created_at' 모두 포함되어 있음
+    # 만약 추가 필드가 필요하면 아래에 추가
 
     class Meta:
         model = OrderStatusLog

@@ -50,7 +50,8 @@ class ChatMessageListCreateView(BaseResponseMixin, generics.ListCreateAPIView):
         },
     )
     def get(self, request, *args, **kwargs):
-        return super().get(request, *args, **kwargs)
+        response = super().get(request, *args, **kwargs)
+        return self.success(data=response.data, message="채팅 메시지 목록을 조회했습니다.")
 
     @swagger_auto_schema(
         operation_summary="채팅 메시지 생성",
@@ -64,7 +65,11 @@ class ChatMessageListCreateView(BaseResponseMixin, generics.ListCreateAPIView):
         },
     )
     def post(self, request, *args, **kwargs):
-        return super().post(request, *args, **kwargs)
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        data = serializer.data
+        return self.success(data=data, message="채팅 메시지가 생성되었습니다.", status=201)
 
 
 class ChatMessageDetailView(BaseResponseMixin, generics.RetrieveUpdateDestroyAPIView):
@@ -125,7 +130,9 @@ class ChatMessageDetailView(BaseResponseMixin, generics.RetrieveUpdateDestroyAPI
         },
     )
     def get(self, request, *args, **kwargs):
-        return super().get(request, *args, **kwargs)
+        instance = self.get_object()
+        serializer = self.get_serializer(instance)
+        return self.success(data=serializer.data, message="채팅 메시지 정보를 조회했습니다.")
 
     @swagger_auto_schema(
         operation_summary="채팅 메시지 수정",
@@ -140,7 +147,34 @@ class ChatMessageDetailView(BaseResponseMixin, generics.RetrieveUpdateDestroyAPI
         },
     )
     def put(self, request, *args, **kwargs):
-        return super().put(request, *args, **kwargs)
+        partial = kwargs.pop("partial", False)
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+        response_serializer = ChatMessageSerializer(instance)
+        return self.success(data=response_serializer.data, message="채팅 메시지가 수정되었습니다.")
+
+    @swagger_auto_schema(
+        operation_summary="채팅 메시지 부분 수정",
+        operation_description="특정 채팅 메시지의 일부 내용을 수정합니다. 작성자만 수정할 수 있습니다.",
+        tags=["ChatMessage"],
+        responses={
+            200: openapi.Response("채팅 메시지가 정상적으로 수정되었습니다."),
+            400: "요청 데이터가 올바르지 않습니다.",
+            401: "인증되지 않은 사용자입니다.",
+            403: "접근 권한이 없습니다.",
+            404: "채팅 메시지를 찾을 수 없습니다.",
+        },
+    )
+    def patch(self, request, *args, **kwargs):
+        partial = True
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+        response_serializer = ChatMessageSerializer(instance)
+        return self.success(data=response_serializer.data, message="채팅 메시지가 수정되었습니다.")
 
     @swagger_auto_schema(
         operation_summary="채팅 메시지 삭제",
@@ -154,4 +188,6 @@ class ChatMessageDetailView(BaseResponseMixin, generics.RetrieveUpdateDestroyAPI
         },
     )
     def delete(self, request, *args, **kwargs):
-        return super().delete(request, *args, **kwargs)
+        instance = self.get_object()
+        self.perform_destroy(instance)
+        return self.success(data=None, message="채팅 메시지가 삭제되었습니다.", status=204)
