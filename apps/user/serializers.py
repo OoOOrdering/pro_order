@@ -9,6 +9,7 @@ from apps.image.image_utils import delete_from_cloudinary, upload_to_cloudinary
 from apps.image.models import Image
 from utils.exceptions import CustomAPIException
 from utils.profanity_filter import ProfanityFilter
+from utils.serializers import BaseSerializer
 
 # Response constants
 DUPLICATE_EMAIL = {"code": 400, "message": "이미 존재하는 이메일입니다."}
@@ -43,11 +44,15 @@ class PasswordValidator:
             raise serializers.ValidationError("비밀번호는 최소 하나의 특수문자를 포함해야 합니다.")
 
 
-class RegisterSerializer(serializers.ModelSerializer):
+class RegisterSerializer(BaseSerializer):
     password = serializers.CharField(write_only=True, required=True)
     password_confirm = serializers.CharField(write_only=True, required=True)
     email = serializers.EmailField(
         validators=[UniqueValidator(queryset=User.objects.all(), message=DUPLICATE_EMAIL["message"])],
+    )
+    nickname = serializers.CharField(
+        required=True,
+        validators=[UniqueValidator(queryset=User.objects.all(), message=DUPLICATE_NICKNAME["message"])],
     )
     nickname = serializers.CharField(
         validators=[UniqueValidator(queryset=User.objects.all(), message=DUPLICATE_NICKNAME["message"])],
@@ -55,24 +60,36 @@ class RegisterSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ["email", "password", "password_confirm", "name", "nickname", "phone"]
+        fields = [
+            "id",
+            "email",
+            "nickname",
+            "name",
+            "password",
+            "password_confirm",
+            # "phone",  # 전화번호 필드는 기본 사용자 시리얼라이저에서 처리
+        ]
 
     def validate(self, data):
-        if data["password"] != data["password_confirm"]:
+        if data.get("password") != data.get("password_confirm"):
             raise serializers.ValidationError(SIGNUP_PASSWORD_MISMATCH)
 
-        PasswordValidator.validate_password(data["password"])
+        PasswordValidator.validate_password(data.get("password"))
 
-        if User.objects.filter(email=data["email"]).exists():
+        if User.objects.filter(email=data.get("email")).exists():
             raise serializers.ValidationError(DUPLICATE_EMAIL)
 
-        if User.objects.filter(nickname=data["nickname"]).exists():
+        if User.objects.filter(nickname=data.get("nickname")).exists():
             raise serializers.ValidationError(DUPLICATE_NICKNAME)
 
-        if profanity_filter.contains_profanity(data["name"]):
+        if not data.get("name"):
+            raise serializers.ValidationError({"name": "이름은 필수 입력 항목입니다."})
+        if profanity_filter.contains_profanity(data.get("name", "")):
             raise serializers.ValidationError("이름에 부적절한 단어가 포함되어 있습니다.")
 
-        if profanity_filter.contains_profanity(data["nickname"]):
+        if not data.get("nickname"):
+            raise serializers.ValidationError({"nickname": "닉네임은 필수 입력 항목입니다."})
+        if profanity_filter.contains_profanity(data.get("nickname", "")):
             raise serializers.ValidationError("닉네임에 부적절한 단어가 포함되어 있습니다.")
 
         return data
@@ -93,7 +110,8 @@ class LogoutSerializer(serializers.Serializer):
     def save(self, **kwargs):  # noqa: ARG002
         try:
             token = RefreshToken(self.token)  # 토큰이 유효한지 검사됨
-            token.blacklist()  # 블랙리스트 등록
+            if hasattr(token, "blacklist"):
+                token.blacklist()  # 블랙리스트 등록
         except Exception as err:
             raise CustomAPIException(INVALID_REFRESH_TOKEN) from err
 
@@ -152,6 +170,7 @@ class ProfileUpdateSerializer(serializers.ModelSerializer):
             "name",
             "nickname",
             "phone",
+            "profile_image_file",  # 누락된 필드 추가
             # "profile_image", # GenericRelation이므로 직접 필드에 포함하지 않습니다.
         ]
 
@@ -324,3 +343,14 @@ class PasswordChangeSerializer(serializers.Serializer):
         user.set_password(self.validated_data["new_password"])
         user.save()
         return user
+
+
+class NicknameCheckSerializer(serializers.Serializer):
+    """닉네임 중복 체크 시리얼라이저"""
+
+    nickname = serializers.CharField(required=True)
+
+    def validate_nickname(self, value):
+        if User.objects.filter(nickname=value).exists():
+            raise serializers.ValidationError(DUPLICATE_NICKNAME["message"])
+        return value

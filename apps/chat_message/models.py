@@ -30,4 +30,4 @@ class ChatMessage(models.Model):
         verbose_name_plural = "Chat Messages"
 
     def __str__(self):
-        return f"Message from {self.sender.username} in {self.chat_room.name}"
+        return f"Message from {self.sender.nickname} in {self.chat_room.name}"

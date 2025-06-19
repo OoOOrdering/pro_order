@@ -2,6 +2,8 @@ from django.urls import path
 
 from .views import DailyAnalyticsListView, EventLogDetailView, EventLogListCreateView
 
+app_name = "analytics"
+
 urlpatterns = [
     path(
         "daily-analytics/",

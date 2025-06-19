@@ -1,15 +1,17 @@
 import typing
 
-from django.db.models import Q
+from django.db.models import Count, Q
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import filters, generics, permissions
 from rest_framework.response import Response
+
+from utils.response import BaseResponseMixin
 
 from .models import Notice
 from .serializers import NoticeCreateUpdateSerializer, NoticeSerializer
 
 
-class NoticeListCreateView(generics.ListCreateAPIView):
+class NoticeListCreateView(BaseResponseMixin, generics.ListCreateAPIView):
     """
     공지사항 목록을 조회하고 새로운 공지사항을 생성하는 뷰입니다.
 
@@ -31,7 +33,7 @@ class NoticeListCreateView(generics.ListCreateAPIView):
         "created_at": ["gte", "lte"],
         "updated_at": ["gte", "lte"],
     }
-    search_fields: typing.ClassVar = ["title", "content", "author__username"]
+    search_fields: typing.ClassVar = ["title", "content"]
     ordering_fields: typing.ClassVar = [
         "created_at",
         "updated_at",
@@ -46,16 +48,20 @@ class NoticeListCreateView(generics.ListCreateAPIView):
 
         'search' 쿼리 파라미터가 있을 경우 제목, 내용, 작성자 이름으로 검색합니다.
         """
-        queryset = Notice.objects.all()
+        # 예시: 필요한 필드만 조회
+        queryset = Notice.objects.only(
+            "id",
+            "title",
+            "content",
+            "author",
+            "is_published",
+            "created_at",
+        )
 
         # 검색어가 있는 경우
         search_query = self.request.query_params.get("search", "")
         if search_query:
-            queryset = queryset.filter(
-                Q(title__icontains=search_query)
-                | Q(content__icontains=search_query)
-                | Q(author__username__icontains=search_query),
-            )
+            queryset = queryset.filter(Q(title__icontains=search_query) | Q(content__icontains=search_query))
 
         return queryset
 
@@ -69,8 +75,18 @@ class NoticeListCreateView(generics.ListCreateAPIView):
             return NoticeCreateUpdateSerializer
         return NoticeSerializer
 
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        # 생성된 객체를 NoticeSerializer로 재직렬화
+        instance = serializer.instance
+        response_serializer = NoticeSerializer(instance, context=self.get_serializer_context())
+        data = response_serializer.data
+        self.logger.info(f"Notice created by {request.user.email if request.user.is_authenticated else 'anonymous'}")
+        return self.success(data=data, message="공지사항이 생성되었습니다.", status=201)
+
     def perform_create(self, serializer):
-        """새로운 공지사항 객체를 생성할 때, 현재 요청을 보낸 사용자를 작성자로 설정합니다."""
         serializer.save(author=self.request.user)
 
 
@@ -134,7 +150,18 @@ class RecentNoticeListView(generics.ListAPIView):
 
     serializer_class = NoticeSerializer
     permission_classes: typing.ClassVar = [permissions.AllowAny]
+    pagination_class = None
 
     def get_queryset(self):
         """게시된 공지사항 중 중요도와 생성일자를 기준으로 정렬된 최신 5개의 공지사항을 반환합니다."""
-        return Notice.objects.filter(is_published=True).order_by("-is_important", "-created_at")[:5]
+        return Notice.objects.filter(is_published=True).order_by("-created_at")[:5]
+
+
+class RecentNoticeListView(generics.ListAPIView):
+    """최근 공지사항 5개를 반환하는 뷰입니다."""
+
+    serializer_class = NoticeSerializer
+    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+
+    def get_queryset(self):
+        return Notice.objects.filter(is_published=True).order_by("-created_at")[:5]

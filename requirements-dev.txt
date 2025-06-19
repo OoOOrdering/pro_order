@@ -1,0 +1,4 @@
+drf-yasg>=1.21.7
+celery>=5.3.6
+redis>=5.0.3
+sentry-sdk>=2.0.1

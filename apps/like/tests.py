@@ -8,21 +8,13 @@ from rest_framework import status
 from rest_framework.test import APIClient
 
 from apps.like.models import Like
-from apps.order.models import Order  # 좋아요 대상 모델 (예시)
+from apps.order.models import Order
 from apps.user.models import User
 
 
 @pytest.fixture
 def api_client():
     return APIClient()
-
-
-@pytest.fixture
-def create_user():
-    def _create_user(email, password, is_staff=False, **kwargs):
-        return User.objects.create_user(email=email, password=password, is_staff=is_staff, is_active=True, **kwargs)
-
-    return _create_user
 
 
 @pytest.fixture
@@ -82,8 +74,8 @@ class TestLikeAPI:
         response = api_client.post(url, data, format="json")
         assert response.status_code == status.HTTP_201_CREATED
         assert Like.objects.count() == 1
-        assert response.data["object_id"] == order.pk
-        assert response.data["content_type_name"] == "order"
+        assert response.data["data"]["object_id"] == order.pk
+        assert response.data["data"]["content_type_name"] == "order"
 
     def test_cannot_like_same_item_twice(self, api_client, authenticate_client, create_order, create_like):
         user = authenticate_client()
@@ -143,29 +135,29 @@ class TestLikeAPI:
         order1 = create_order(user=user)
         order2 = create_order(user=user)
 
-        old_like = create_like(
-            user=user,
-            content_object=order1,
-            created_at=timezone.now() - timedelta(days=2),
-        )
-        new_like = create_like(
-            user=user,
-            content_object=order2,
-            created_at=timezone.now() - timedelta(days=1),
-        )
+        # Create likes in the past
+        old_time = timezone.now().replace(hour=0, minute=0, second=0, microsecond=0) - timedelta(days=2)
+        new_time = timezone.now().replace(hour=0, minute=0, second=0, microsecond=0) - timedelta(days=1)
 
-        url = (
-            reverse("like:like-list-create")
-            + f"?created_at__gte={(timezone.now() - timedelta(days=3)).date()}&created_at__lte={(timezone.now()).date()}"
-        )
+        old_like = create_like(user=user, content_object=order1)
+        old_like.created_at = old_time
+        old_like.save(update_fields=["created_at"])
+
+        new_like = create_like(user=user, content_object=order2)
+        new_like.created_at = new_time
+        new_like.save(update_fields=["created_at"])
+
+        # 3일 전부터 현재까지의 좋아요 조회
+        three_days_ago = (timezone.now() - timedelta(days=3)).strftime("%Y-%m-%d")
+        today = timezone.now().strftime("%Y-%m-%d")
+        url = reverse("like:like-list-create") + f"?created_at__gte={three_days_ago}&created_at__lte={today}"
         response = api_client.get(url)
         assert response.status_code == status.HTTP_200_OK
         assert len(response.data["results"]) == 2
 
-        url = (
-            reverse("like:like-list-create")
-            + f"?created_at__gte={(timezone.now() - timedelta(days=1, seconds=1)).date()}"
-        )
+        # 1일 전부터의 좋아요만 조회
+        one_day_ago = (timezone.now() - timedelta(days=1)).strftime("%Y-%m-%d")
+        url = reverse("like:like-list-create") + f"?created_at__gte={one_day_ago}"
         response = api_client.get(url)
         assert response.status_code == status.HTTP_200_OK
         assert len(response.data["results"]) == 1

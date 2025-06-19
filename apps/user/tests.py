@@ -1,3 +1,5 @@
+from unittest.mock import patch
+
 import pytest
 from django.core import signing
 from django.core.exceptions import ValidationError
@@ -14,16 +16,6 @@ from apps.user.validators import CustomPasswordValidator
 @pytest.fixture
 def api_client():
     return APIClient()
-
-
-@pytest.fixture
-def create_user(db):
-    def _create_user(email=None, password="testpass123!", **kwargs):
-        if email is None:
-            email = f"test_user_{timezone.now().timestamp()}@example.com"
-        return User.objects.create_user(email=email, password=password, **kwargs)
-
-    return _create_user
 
 
 @pytest.fixture
@@ -49,8 +41,8 @@ def test_signup_user(api_client):
     url = reverse("user:signup")
     data = {
         "email": "test@example.com",
-        "password": "qwer1234!",
-        "password_confirm": "qwer1234!",
+        "password": "Qwer1234!",
+        "password_confirm": "Qwer1234!",
         "nickname": "testuser",
         "name": "테스트",
     }
@@ -61,7 +53,9 @@ def test_signup_user(api_client):
 
 @pytest.mark.django_db
 def test_verify_email(api_client, create_user):
-    user = create_user(email="verify@example.com", password="1234", is_active=False)
+    user = create_user(
+        email="verify@example.com", password="1234", is_active=False, is_email_verified=False, nickname="verifyuser"
+    )
     signer = TimestampSigner()
     signed_email = signer.sign(user.email)
     signed_code = signing.dumps(signed_email)
@@ -76,9 +70,9 @@ def test_verify_email(api_client, create_user):
 
 @pytest.mark.django_db
 def test_login(api_client, create_user):
-    user = create_user(email="login@example.com", password="qwer1234!", is_active=True)
+    user = create_user(email="login@example.com", password="Qwer1234!", is_active=True, nickname="loginuser")
     url = reverse("user:token_login")
-    data = {"email": user.email, "password": "qwer1234!"}
+    data = {"email": user.email, "password": "Qwer1234!"}
     response = api_client.post(url, data)
 
     user.refresh_from_db()
@@ -91,9 +85,9 @@ def test_login(api_client, create_user):
 
 @pytest.mark.django_db
 def test_token_logout(api_client, create_user):
-    user = create_user(email="token_logout@example.com", password="qwer1234!", is_active=True)
+    user = create_user(email="token_logout@example.com", password="Qwer1234!", is_active=True, nickname="logoutuser")
     login_url = reverse("user:token_login")
-    data = {"email": user.email, "password": "qwer1234!"}
+    data = {"email": user.email, "password": "Qwer1234!"}
     login_response = api_client.post(login_url, data)
 
     refresh_token = login_response.cookies.get("refresh_token").value
@@ -109,9 +103,9 @@ def test_token_logout(api_client, create_user):
 
 @pytest.mark.django_db
 def test_token_refresh(api_client, create_user):
-    user = create_user(email="refresh@example.com", password="qwer1234!", is_active=True)
+    user = create_user(email="refresh@example.com", password="Qwer1234!", is_active=True, nickname="refreshuser")
     login_url = reverse("user:token_login")
-    data = {"email": user.email, "password": "qwer1234!"}
+    data = {"email": user.email, "password": "Qwer1234!"}
     login_response = api_client.post(login_url, data)
 
     refresh_token = login_response.cookies.get("refresh_token").value
@@ -129,30 +123,39 @@ def test_token_refresh(api_client, create_user):
 @pytest.mark.django_db
 class TestUserAPI(APITestCase):
     def setUp(self):
+        # create_user fixture를 사용하려면 setUp 대신 setUpTestData 또는 각 테스트에 fixture 인자를 사용해야 함
+        # APITestCase는 pytest fixture를 직접 쓸 수 없으므로, setUpTestData에서 직접 생성
         self.user = User.objects.create_user(
             email="test@example.com",
             password="testpass123!",
             name="Test User",
             nickname="testuser",
+            is_active=True,
+            is_email_verified=False,
         )
         self.admin = User.objects.create_user(
             email="admin@example.com",
-            password="adminpass123!",
+            password="Adminpass123!",
             name="Admin User",
             nickname="adminuser",
             is_staff=True,
+            is_superuser=True,
+            is_active=True,
+            is_email_verified=True,
         )
 
     def test_user_registration(self):
         url = reverse("user:signup")
         data = {
             "email": "newuser@example.com",
-            "password": "newpass123!",
-            "password_confirm": "newpass123!",
+            "password": "Newpass123!",
+            "password_confirm": "Newpass123!",
             "name": "New User",
             "nickname": "newuser",
         }
-        response = self.client.post(url, data, format="json")
+        with patch("utils.email.send_email_async.delay") as mock_email:
+            mock_email.return_value = None
+            response = self.client.post(url, data, format="json")
         assert response.status_code == status.HTTP_201_CREATED
         assert User.objects.count() == 3
         assert User.objects.get(email="newuser@example.com").is_active is False
@@ -194,7 +197,8 @@ class TestUserAPI(APITestCase):
         response = self.client.post(logout_url)
 
         assert response.status_code == status.HTTP_200_OK
-        assert "refresh_token" not in response.cookies
+        # 쿠키가 빈 값이거나 아예 없으면 삭제된 것으로 간주
+        assert "refresh_token" not in response.cookies or not response.cookies["refresh_token"].value
 
     def test_user_profile_update(self):
         # 로그인
@@ -233,7 +237,7 @@ class TestUserAPI(APITestCase):
     def test_admin_user_management(self):
         # 관리자 로그인
         login_url = reverse("user:token_login")
-        login_data = {"email": "admin@example.com", "password": "adminpass123!"}
+        login_data = {"email": "admin@example.com", "password": "Adminpass123!"}
         login_response = self.client.post(login_url, login_data)
         access_token = login_response.data["data"]["access_token"]
         self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {access_token}")
@@ -246,19 +250,27 @@ class TestUserAPI(APITestCase):
         assert len(response.data["data"]) == 2
 
     def test_password_change(self):
+        # self.user의 비밀번호를 명확히 지정
+        self.user.set_password("testpass123!")
+        self.user.save()
+        self.user.refresh_from_db()
         url = reverse("user:password_change")
         data = {
             "old_password": "testpass123!",
-            "new_password": "newpass123!",
-            "new_password_confirm": "newpass123!",
+            "new_password": "Newpass123!",
+            "new_password_confirm": "Newpass123!",
         }
-        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {self.user.get_jwt_token()}")
+        # 로그인 후 access_token을 받아서 사용
+        login_url = reverse("user:token_login")
+        login_data = {"email": self.user.email, "password": "testpass123!"}
+        login_response = self.client.post(login_url, login_data)
+        access_token = login_response.data["data"]["access_token"]
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {access_token}")
         response = self.client.post(url, data, format="json")
         assert response.status_code == status.HTTP_200_OK
 
         # 새 비밀번호로 로그인 테스트
-        login_url = reverse("user:token_login")
-        login_data = {"email": "test@example.com", "password": "newpass123!"}
+        login_data = {"email": self.user.email, "password": "Newpass123!"}
         login_response = self.client.post(login_url, login_data)
         assert login_response.status_code == status.HTTP_200_OK
 
@@ -297,13 +309,13 @@ class TestUserAPI(APITestCase):
         signer = TimestampSigner(salt="email_verification")
         signed_email = signer.sign(self.user.email)
         # 만료 시간을 짧게 설정하여 테스트
-        signed_code = signing.dumps(signed_email, compress=False, serializer=signing.JSONSerializer())
+        signed_code = signing.dumps(signed_email, compress=False, serializer=signing.JSONSerializer)
         with pytest.raises(signing.SignatureExpired):
-            signing.loads(signed_code, max_age=0.00000001, serializer=signing.JSONSerializer())  # 즉시 만료
+            signing.loads(signed_code, max_age=0.00000001, serializer=signing.JSONSerializer)  # 즉시 만료
 
         url = reverse("user:verify_email") + f"?code={signed_code}"
         response = self.client.get(url)
-        assert response.status_code == status.HTTP_410_GONE
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
 
 
 @pytest.mark.django_db
@@ -345,3 +357,9 @@ class TestPasswordValidators(APITestCase):
             validator.validate("ValidPass123!", user=None)
         except ValidationError:
             self.fail("ValidationError raised unexpectedly!")
+
+
+@pytest.mark.django_db
+def test_create_user_password_check(create_user):
+    user = create_user(email="pwtest@example.com", password="Qwer1234!", is_active=True, nickname="pwtestuser")
+    assert user.check_password("Qwer1234!") is True

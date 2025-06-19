@@ -6,6 +6,7 @@ from .views import (
     CustomTokenRefreshView,
     EmailVerificationView,
     LogoutAPIView,
+    NicknameCheckView,
     PasswordResetView,
     RegisterView,
     ResendVerificationEmailView,
@@ -41,4 +42,5 @@ urlpatterns = [
         ResendVerificationEmailView.as_view(),
         name="resend-verification-email",
     ),
+    path("nickname/check/", NicknameCheckView.as_view(), name="nickname_check"),
 ]

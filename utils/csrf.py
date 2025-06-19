@@ -13,7 +13,11 @@ CSRF_TOKEN_EXPIRY_SECONDS = 60 * 60 * 3  # 3시간 유효기간
 
 
 # 위조 방지용 사용자 정의 CSRF 토큰 생성
-def generate_csrf_token():
+def generate_csrf_token() -> str:
+    """
+    위조 방지용 사용자 정의 CSRF 토큰을 생성합니다.
+    :return: 랜덤값.만료타임스탬프.서명 형태의 CSRF 토큰 문자열
+    """
     raw_token = secrets.token_hex(32)
     expiry_timestamp = int(time.time()) + CSRF_TOKEN_EXPIRY_SECONDS
     data_to_sign = f"{raw_token}.{expiry_timestamp}"
@@ -32,7 +36,12 @@ def generate_csrf_token():
 
 
 # 전달받은 CSRF 토큰이 유효한지 검증
-def validate_csrf_token(token):
+def validate_csrf_token(token: str) -> bool:
+    """
+    전달받은 CSRF 토큰이 유효한지 검증합니다.
+    :param token: 검증할 CSRF 토큰 문자열
+    :return: 유효하면 True, 아니면 False
+    """
     try:
         raw_token, expiry_timestamp, signature = token.split(".")
         expected_data = f"{raw_token}.{expiry_timestamp}"

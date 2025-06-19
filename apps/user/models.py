@@ -10,22 +10,31 @@ from utils.models import TimestampModel
 
 # 사용자 지정 메니져
 class UserManager(BaseUserManager):
-    def create_user(self, email, password, **kwargs):
+    def create_user(self, email, password, nickname, **kwargs):
         if not email:
             raise ValueError("올바른 이메일을 입력하세요.")
-        user = self.model(email=self.normalize_email(email), **kwargs)
-        user.set_password(password)  # 해시화
-        # user.is_active = True  # 기본값 False: 이메일 인증 후 활성화
+        if not nickname:
+            raise ValueError("닉네임을 입력하세요.")
+
+        user = self.model(email=self.normalize_email(email), nickname=nickname, **kwargs)
+        user.set_password(password)
         user.save(using=self._db)
         return user
 
-    def create_superuser(self, email, password, nickname):
-        user = self.create_user(email, password, nickname=nickname)
-        user.is_superuser = True
-        user.is_staff = True
-        user.is_active = True
-        user.save(using=self._db)
-        return user
+    def create_superuser(self, email, password, nickname=None, **extra_fields):
+        extra_fields.setdefault("is_superuser", True)
+        extra_fields.setdefault("is_staff", True)
+        extra_fields.setdefault("is_active", True)
+        if not nickname:
+            # 자동 닉네임 생성
+            import uuid
+
+            nickname = f"admin_{str(uuid.uuid4())[:8]}"
+        if extra_fields.get("is_staff") is not True:
+            raise ValueError("Superuser must have is_staff=True.")
+        if extra_fields.get("is_superuser") is not True:
+            raise ValueError("Superuser must have is_superuser=True.")
+        return self.create_user(email=email, password=password, nickname=nickname, **extra_fields)
 
     def make_random_password(
         self,
@@ -137,6 +146,17 @@ class User(AbstractBaseUser, TimestampModel):  # 기본 기능은 상속받아�
         self.failed_login_attempts = 0
         self.last_failed_login_attempt = None
         self.save(update_fields=["failed_login_attempts", "last_failed_login_attempt"])
+
+    def get_jwt_token(self):
+        """JWT 토큰을 생성합니다."""
+        from rest_framework_simplejwt.tokens import RefreshToken
+
+        refresh = RefreshToken.for_user(self)
+        return {
+            "access_token": str(refresh.access_token),
+            "refresh_token": str(refresh),
+            "csrf_token": self.get_session_auth_hash(),
+        }
 
 
 # @property

@@ -2,12 +2,15 @@ from django.urls import path
 
 from .views import (
     ChatRoomDetailView,
+    ChatRoomJoinView,
     ChatRoomLeaveView,
     ChatRoomListCreateView,
     ChatRoomMarkAsReadView,
     ChatRoomParticipantAddView,
     ChatRoomParticipantRemoveView,
 )
+
+app_name = "chat_room"
 
 urlpatterns = [
     path("chat-rooms/", ChatRoomListCreateView.as_view(), name="chat-room-list-create"),
@@ -31,5 +34,10 @@ urlpatterns = [
         "chat-rooms/<int:pk>/mark-as-read/",
         ChatRoomMarkAsReadView.as_view(),
         name="chat-room-mark-as-read",
+    ),
+    path(
+        "chat-rooms/<int:pk>/join/",
+        ChatRoomJoinView.as_view(),
+        name="chat-room-join",
     ),
 ]

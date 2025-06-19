@@ -3,6 +3,29 @@ from rest_framework import serializers
 from .models import OrderStatusLog
 
 
+class OrderStatusLogListSerializer(serializers.ModelSerializer):
+    changed_by_email = serializers.EmailField(source="changed_by.email", read_only=True)
+    changed_by_nickname = serializers.CharField(source="changed_by.nickname", read_only=True)
+    order_title = serializers.CharField(source="order.title", read_only=True)
+
+    class Meta:
+        model = OrderStatusLog
+        fields = (
+            "id",
+            "order",
+            "order_title",
+            "previous_status",
+            "new_status",
+            "changed_by",
+            "changed_by_email",
+            "changed_by_nickname",
+            "reason",
+            "memo",
+            "created_at",
+        )
+        read_only_fields = ("id", "created_at")
+
+
 class OrderStatusLogSerializer(serializers.ModelSerializer):
     changed_by_email = serializers.EmailField(source="changed_by.email", read_only=True)
 
@@ -23,9 +46,11 @@ class OrderStatusLogSerializer(serializers.ModelSerializer):
 
 
 class OrderStatusLogCreateSerializer(serializers.ModelSerializer):
+    changed_by_email = serializers.EmailField(source="changed_by.email", read_only=True)
+
     class Meta:
         model = OrderStatusLog
-        fields = ("order", "new_status", "reason", "memo")
+        fields = ("order", "new_status", "reason", "memo", "changed_by_email")
 
     def validate(self, attrs):
         order = attrs["order"]

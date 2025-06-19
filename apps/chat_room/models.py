@@ -10,6 +10,8 @@ class ChatRoom(models.Model):
         GROUP = "GROUP", _("그룹 채팅")
 
     name = models.CharField(_("채팅방 이름"), max_length=100)
+    description = models.TextField(_("채팅방 설명"), blank=True, null=True)
+    max_participants = models.PositiveIntegerField(_("최대 참여자 수"), default=10)
     room_type = models.CharField(
         _("채팅방 유형"),
         max_length=20,

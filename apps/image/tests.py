@@ -1,34 +1,46 @@
-# # tests/image/test_views.py
-#
-# import io
-#
-# import pytest
-# from django.contrib.auth import get_user_model
-# from django.core.files.uploadedfile import SimpleUploadedFile
-# from django.urls import reverse
-# from PIL import Image as PilImage
-# from rest_framework import status
-# from rest_framework.test import APIClient
-#
-# User = get_user_model()
-#
-#
-# @pytest.fixture
-# def user(db):
-#     return User.objects.create_user(email="test@example.com", password="password123")
-#
-#
-# @pytest.fixture
-# def auth_client(user):
-#     client = APIClient()
-#     response = client.post(
-#         "/api/auth/login/",
-#         {"email": user.email, "password": "password123"},
-#         format="json",
-#     )
-#     token = response.data["data"]["access_token"]
-#     client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
-#     return client
+import io
+
+import pytest
+from django.contrib.auth import get_user_model
+from django.core.files.uploadedfile import SimpleUploadedFile
+from django.urls import reverse
+from django.utils import timezone
+from PIL import Image as PilImage
+from rest_framework import status
+from rest_framework.test import APIClient
+
+User = get_user_model()
+
+
+@pytest.fixture
+def create_user():
+    def _create_user(email, password, is_staff=False, **kwargs):
+        timestamp = timezone.now().timestamp()
+        if "nickname" not in kwargs:
+            kwargs["nickname"] = f"test_user_{timestamp}"
+        return User.objects.create_user(email=email, password=password, is_staff=is_staff, is_active=True, **kwargs)
+
+    return _create_user
+
+
+@pytest.fixture
+def user(create_user):
+    return create_user(email="test@example.com", password="password123")
+
+
+@pytest.fixture
+def auth_client(user):
+    client = APIClient()
+    response = client.post(
+        reverse("user:token_login"),
+        {"email": user.email, "password": "password123"},
+        format="json",
+    )
+    token = response.data["data"]["access_token"]
+    client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+    return client
+
+
 #
 #
 # def generate_image_file(name="test.jpg"):

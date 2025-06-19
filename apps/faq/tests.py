@@ -16,18 +16,10 @@ def api_client():
 
 
 @pytest.fixture
-def create_user(db):
-    def _create_user(email, password, is_staff=False, **kwargs):
-        return User.objects.create_user(email=email, password=password, is_staff=is_staff, is_active=True, **kwargs)
-
-    return _create_user
-
-
-@pytest.fixture
-def authenticate_client(api_client, create_user):
+def authenticate_client(api_client, user_factory):
     def _authenticate_client(user=None, is_staff=False):
         if user is None:
-            user = create_user(
+            user = user_factory(
                 email=f"test_user_{timezone.now().timestamp()}@example.com",
                 password="testpass123!",
                 is_staff=is_staff,
@@ -44,20 +36,23 @@ def authenticate_client(api_client, create_user):
 @pytest.fixture
 def create_faq(db):
     def _create_faq(**kwargs):
-        return FAQ.objects.create(
-            question=f"Test Question {timezone.now().timestamp()}",
-            answer=f"Test Answer {timezone.now().timestamp()}",
-            category="General",
-            **kwargs,
-        )
+        timestamp = timezone.now().timestamp()
+        defaults = {
+            "question": f"Test Question {timestamp}",
+            "answer": f"Test Answer {timestamp}",
+            "category": "General",
+        }
+        defaults.update(kwargs)
+        return FAQ.objects.create(**defaults)
 
     return _create_faq
 
 
 @pytest.mark.django_db
 class TestFAQAPI:
-    def test_create_faq(self, api_client, authenticate_client):
+    def test_create_faq(self, api_client, authenticate_client, create_faq):
         admin_user = authenticate_client(is_staff=True)
+        api_client.force_authenticate(user=admin_user)
         url = reverse("faq:faq-list-create")
         data = {
             "question": "How to use the service?",
@@ -68,10 +63,11 @@ class TestFAQAPI:
         response = api_client.post(url, data, format="json")
         assert response.status_code == status.HTTP_201_CREATED
         assert FAQ.objects.count() == 1
-        assert response.data["question"] == "How to use the service?"
+        assert response.data["data"]["question"] == "How to use the service?"
 
-    def test_non_admin_cannot_create_faq(self, api_client, authenticate_client):
+    def test_non_admin_cannot_create_faq(self, api_client, authenticate_client, create_faq):
         user = authenticate_client(is_staff=False)
+        api_client.force_authenticate(user=user)
         url = reverse("faq:faq-list-create")
         data = {
             "question": "Test Question",
@@ -84,6 +80,7 @@ class TestFAQAPI:
 
     def test_get_faq_list(self, api_client, authenticate_client, create_faq):
         admin_user = authenticate_client(is_staff=True)
+        api_client.force_authenticate(user=admin_user)
         create_faq(question="FAQ 1", is_published=True)
         create_faq(question="FAQ 2", is_published=True)
         create_faq(question="FAQ 3", is_published=False)
@@ -95,6 +92,7 @@ class TestFAQAPI:
 
     def test_non_admin_sees_only_published_faqs(self, api_client, authenticate_client, create_faq):
         user = authenticate_client(is_staff=False)
+        api_client.force_authenticate(user=user)
         create_faq(question="Published FAQ", is_published=True)
         create_faq(question="Unpublished FAQ", is_published=False)
 
@@ -106,6 +104,7 @@ class TestFAQAPI:
 
     def test_filter_faq_by_category(self, api_client, authenticate_client, create_faq):
         admin_user = authenticate_client(is_staff=True)
+        api_client.force_authenticate(user=admin_user)
         create_faq(question="General FAQ", category="General")
         create_faq(question="Technical FAQ", category="Technical")
 
@@ -117,6 +116,7 @@ class TestFAQAPI:
 
     def test_filter_faq_by_published_status(self, api_client, authenticate_client, create_faq):
         admin_user = authenticate_client(is_staff=True)
+        api_client.force_authenticate(user=admin_user)
         create_faq(question="Published FAQ", is_published=True)
         create_faq(question="Unpublished FAQ", is_published=False)
 
@@ -128,12 +128,13 @@ class TestFAQAPI:
 
     def test_filter_faq_by_date_range(self, api_client, authenticate_client, create_faq):
         admin_user = authenticate_client(is_staff=True)
-        today = timezone.now()
+        api_client.force_authenticate(user=admin_user)
+        today = timezone.now().replace(hour=0, minute=0, second=0, microsecond=0)
         yesterday = today - timedelta(days=1)
         tomorrow = today + timedelta(days=1)
-
-        faq = create_faq(question="Date Range Test", created_at=today)
-
+        faq = create_faq(question="Date Range Test")
+        faq.created_at = today
+        faq.save(update_fields=["created_at"])
         url = reverse("faq:faq-list-create") + f"?created_at__gte={yesterday.date()}&created_at__lte={tomorrow.date()}"
         response = api_client.get(url)
         assert response.status_code == status.HTTP_200_OK
@@ -142,6 +143,7 @@ class TestFAQAPI:
 
     def test_search_faq(self, api_client, authenticate_client, create_faq):
         admin_user = authenticate_client(is_staff=True)
+        api_client.force_authenticate(user=admin_user)
         create_faq(question="How to search?", answer="Use the search bar")
         create_faq(question="Another question", answer="Another answer")
 
@@ -161,6 +163,7 @@ class TestFAQAPI:
 
     def test_sort_faq(self, api_client, authenticate_client, create_faq):
         admin_user = authenticate_client(is_staff=True)
+        api_client.force_authenticate(user=admin_user)
         create_faq(question="B Question", category="B")
         create_faq(question="A Question", category="A")
 
@@ -173,6 +176,7 @@ class TestFAQAPI:
 
     def test_get_faq_detail(self, api_client, authenticate_client, create_faq):
         admin_user = authenticate_client(is_staff=True)
+        api_client.force_authenticate(user=admin_user)
         faq = create_faq()
         url = reverse("faq:faq-detail", kwargs={"pk": faq.pk})
         response = api_client.get(url)
@@ -181,6 +185,7 @@ class TestFAQAPI:
 
     def test_update_faq(self, api_client, authenticate_client, create_faq):
         admin_user = authenticate_client(is_staff=True)
+        api_client.force_authenticate(user=admin_user)
         faq = create_faq()
         url = reverse("faq:faq-detail", kwargs={"pk": faq.pk})
         updated_data = {"question": "Updated Question", "is_published": False}
@@ -192,6 +197,7 @@ class TestFAQAPI:
 
     def test_delete_faq(self, api_client, authenticate_client, create_faq):
         admin_user = authenticate_client(is_staff=True)
+        api_client.force_authenticate(user=admin_user)
         faq = create_faq()
         url = reverse("faq:faq-detail", kwargs={"pk": faq.pk})
         response = api_client.delete(url)
@@ -200,6 +206,7 @@ class TestFAQAPI:
 
     def test_non_admin_cannot_update_faq(self, api_client, authenticate_client, create_faq):
         user = authenticate_client(is_staff=False)
+        api_client.force_authenticate(user=user)
         faq = create_faq()
         url = reverse("faq:faq-detail", kwargs={"pk": faq.pk})
         updated_data = {"question": "Attempted Update"}
@@ -208,6 +215,7 @@ class TestFAQAPI:
 
     def test_non_admin_cannot_delete_faq(self, api_client, authenticate_client, create_faq):
         user = authenticate_client(is_staff=False)
+        api_client.force_authenticate(user=user)
         faq = create_faq()
         url = reverse("faq:faq-detail", kwargs={"pk": faq.pk})
         response = api_client.delete(url)
@@ -233,11 +241,11 @@ class TestFAQAPI:
 
         url = reverse("faq:faq-detail", kwargs={"pk": faq.pk})
         response = api_client.get(url)
-        assert response.status_code == status.HTTP_403_FORBIDDEN  # 상세 조회는 관리자만 가능
+        assert response.status_code == status.HTTP_401_UNAUTHORIZED  # 인증되지 않은 사용자의 접근
 
-        # 수정/삭제는 불가능
+        # 수정/삭제는 불가능 (인증되지 않은 사용자이므로 401)
         response = api_client.patch(url, {"question": "Unauthorized Update"})
-        assert response.status_code == status.HTTP_403_FORBIDDEN
+        assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
         response = api_client.delete(url)
-        assert response.status_code == status.HTTP_403_FORBIDDEN
+        assert response.status_code == status.HTTP_401_UNAUTHORIZED

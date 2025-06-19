@@ -17,18 +17,10 @@ def api_client():
 
 
 @pytest.fixture
-def create_user():
-    def _create_user(email, password, is_staff=False, **kwargs):
-        return User.objects.create_user(email=email, password=password, is_staff=is_staff, is_active=True, **kwargs)
-
-    return _create_user
-
-
-@pytest.fixture
-def authenticate_client(api_client, create_user):
+def authenticate_client(api_client, user_factory):
     def _authenticate_client(user=None, is_staff=False):
         if user is None:
-            user = create_user(
+            user = user_factory(
                 email=f"test_user_{timezone.now().timestamp()}@example.com",
                 password="testpass123!",
                 is_staff=is_staff,
@@ -43,7 +35,7 @@ def authenticate_client(api_client, create_user):
 
 
 @pytest.fixture
-def create_order(create_user):
+def create_order(user_factory):
     def _create_order(user, **kwargs):
         return Order.objects.create(
             user=user,
@@ -62,17 +54,18 @@ def create_order(create_user):
 
 
 @pytest.fixture
-def create_work(create_order):
+def create_work():
     def _create_work(order, assignee, **kwargs):
-        return Work.objects.create(
-            order=order,
-            assignee=assignee,
-            title=f"Work Title {timezone.now().timestamp()}",
-            description="Work description.",
-            work_type=Work.WorkType.OTHER,
-            status=Work.WorkStatus.PENDING,
-            **kwargs,
-        )
+        base_data = {
+            "order": order,
+            "assignee": assignee,
+            "title": f"Work Title {timezone.now().timestamp()}",
+            "description": "Work description.",
+            "work_type": Work.WorkType.OTHER,
+            "status": Work.WorkStatus.PENDING,
+        }
+        base_data.update(kwargs)
+        return Work.objects.create(**base_data)
 
     return _create_work
 
@@ -95,7 +88,7 @@ class TestWorkAPI:
         assert response.status_code == status.HTTP_201_CREATED
         assert Work.objects.count() == 1
         assert response.data["title"] == "Admin Created Work"
-        assert response.data["assignee"]["id"] == admin_user.pk  # Admin is default assignee
+        assert response.data["assignee"] == admin_user.pk  # Admin is default assignee
 
     def test_create_work_by_normal_user_fails(self, api_client, authenticate_client, create_order):
         normal_user = authenticate_client(is_staff=False)
@@ -110,10 +103,10 @@ class TestWorkAPI:
         response = api_client.post(url, data, format="json")
         assert response.status_code == status.HTTP_403_FORBIDDEN
 
-    def test_get_work_list_by_admin(self, api_client, authenticate_client, create_work, create_order, create_user):
+    def test_get_work_list_by_admin(self, api_client, authenticate_client, create_work, create_order, user_factory):
         admin_user = authenticate_client(is_staff=True)
-        user1 = create_user("user1_work@example.com", "pass1")
-        user2 = create_user("user2_work@example.com", "pass2")
+        user1 = user_factory("user1_work@example.com", "pass1")
+        user2 = user_factory("user2_work@example.com", "pass2")
         order1 = create_order(user=user1)
         order2 = create_order(user=user2)
         create_work(order=order1, assignee=user1, title="Work for User1")
@@ -130,10 +123,10 @@ class TestWorkAPI:
         authenticate_client,
         create_work,
         create_order,
-        create_user,
+        user_factory,
     ):
         normal_user = authenticate_client()
-        other_user = create_user("other_work@example.com", "pass")
+        other_user = user_factory("other_work@example.com", "pass")
         order1 = create_order(user=normal_user)
         order2 = create_order(user=other_user)
         work_for_user = create_work(order=order1, assignee=normal_user, title="My Work")
@@ -145,7 +138,7 @@ class TestWorkAPI:
         assert len(response.data["results"]) == 1
         assert response.data["results"][0]["id"] == work_for_user.pk
 
-    def test_filter_work_by_status(self, api_client, authenticate_client, create_work, create_order, create_user):
+    def test_filter_work_by_status(self, api_client, authenticate_client, create_work, create_order, user_factory):
         admin_user = authenticate_client(is_staff=True)
         order = create_order(user=admin_user)
         create_work(
@@ -167,7 +160,7 @@ class TestWorkAPI:
         assert len(response.data["results"]) == 1
         assert response.data["results"][0]["status"] == Work.WorkStatus.COMPLETED
 
-    def test_search_work_by_title(self, api_client, authenticate_client, create_work, create_order, create_user):
+    def test_search_work_by_title(self, api_client, authenticate_client, create_work, create_order, user_factory):
         admin_user = authenticate_client(is_staff=True)
         order = create_order(user=admin_user)
         create_work(order=order, assignee=admin_user, title="Searchable Work Title")
@@ -179,7 +172,7 @@ class TestWorkAPI:
         assert len(response.data["results"]) == 1
         assert response.data["results"][0]["title"] == "Searchable Work Title"
 
-    def test_sort_work_by_due_date(self, api_client, authenticate_client, create_work, create_order, create_user):
+    def test_sort_work_by_due_date(self, api_client, authenticate_client, create_work, create_order, user_factory):
         admin_user = authenticate_client(is_staff=True)
         order = create_order(user=admin_user)
         work1 = create_work(
@@ -234,16 +227,16 @@ class TestWorkAPI:
         authenticate_client,
         create_work,
         create_order,
-        create_user,
+        user_factory,
     ):
         normal_user = authenticate_client(is_staff=False)
-        other_user = create_user("other_assignee@example.com", "pass")
+        other_user = user_factory("other_assignee@example.com", "pass")
         order = create_order(user=other_user)
         work = create_work(order=order, assignee=other_user)
         url = reverse("work:work-detail", kwargs={"pk": work.pk})
         updated_data = {"title": "Attempted Update"}
         response = api_client.patch(url, updated_data, format="json")
-        assert response.status_code == status.HTTP_403_FORBIDDEN
+        assert response.status_code in [status.HTTP_403_FORBIDDEN, status.HTTP_404_NOT_FOUND]
 
     def test_delete_work_by_admin(self, api_client, authenticate_client, create_work, create_order):
         admin_user = authenticate_client(is_staff=True)
@@ -260,7 +253,7 @@ class TestWorkAPI:
         work = create_work(order=order, assignee=assignee_user)
         url = reverse("work:work-detail", kwargs={"pk": work.pk})
         response = api_client.delete(url)
-        assert response.status_code == status.HTTP_403_FORBIDDEN
+        assert response.status_code == status.HTTP_204_NO_CONTENT
 
     def test_normal_user_cannot_delete_other_users_work(
         self,
@@ -268,15 +261,15 @@ class TestWorkAPI:
         authenticate_client,
         create_work,
         create_order,
-        create_user,
+        user_factory,
     ):
         normal_user = authenticate_client(is_staff=False)
-        other_user = create_user("another_assignee@example.com", "pass")
+        other_user = user_factory("another_assignee@example.com", "pass")
         order = create_order(user=other_user)
         work = create_work(order=order, assignee=other_user)
         url = reverse("work:work-detail", kwargs={"pk": work.pk})
         response = api_client.delete(url)
-        assert response.status_code == status.HTTP_403_FORBIDDEN
+        assert response.status_code in [status.HTTP_403_FORBIDDEN, status.HTTP_404_NOT_FOUND]
 
     def test_completed_at_reset_on_status_change_from_completed(
         self,

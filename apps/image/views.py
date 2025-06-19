@@ -8,25 +8,15 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework_simplejwt.authentication import JWTAuthentication
 
+from utils.response import UPLOAD_SUCCESS, BaseResponseMixin
+
 from .serializers import ImageUploadSerializer
 
-
-# Helper functions for consistent API responses
-def success_response(message="Success", data=None, code=status.HTTP_200_OK):
-    return Response({"code": code, "message": message, "data": data}, status=code)
-
-
-def error_response(message="Error", data=None, code=status.HTTP_400_BAD_REQUEST):
-    return Response({"code": code, "message": message, "data": data}, status=code)
-
-
 # Response constants
-UPLOAD_SUCCESS = {"code": 201, "message": "이미지 업로드에 성공했습니다."}
-
 logger = logging.getLogger("apps")
 
 
-class ImageUploadView(GenericAPIView):
+class ImageUploadView(BaseResponseMixin, GenericAPIView):
     serializer_class = ImageUploadSerializer
     permission_classes = [IsAuthenticated]  # 인증된 사용자만 데이터 접근 가능
     authentication_classes = [JWTAuthentication]  # JWT 인증
@@ -58,18 +48,13 @@ class ImageUploadView(GenericAPIView):
                 }
                 for image in images
             ]
-            logger.info(f"Image upload successful for user {request.user.email}")
-            return success_response(
-                message=UPLOAD_SUCCESS["message"],
-                data=response_data,
-                code=status.HTTP_201_CREATED,
+            self.logger.info(
+                f"Image uploaded by {request.user.email if request.user.is_authenticated else 'anonymous'}"
             )
+            return self.success(data=response_data, message=UPLOAD_SUCCESS["message"], status=201)
         except Exception as e:
-            logger.error(
-                f"Error uploading image for user {request.user.email}: {e}",
-                exc_info=True,
-            )
-            return error_response(message="이미지 업로드에 실패했습니다.", data=str(e))
+            self.logger.error(f"Image upload failed: {e}", exc_info=True)
+            return self.error(message="이미지 업로드에 실패했습니다.", status=400)
 
     @swagger_auto_schema(
         tags=["이미지"],

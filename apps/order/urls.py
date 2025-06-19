@@ -9,6 +9,8 @@ from .views import (
     OrderRefundView,
 )
 
+app_name = "order"
+
 urlpatterns = [
     path("orders/", OrderListCreateView.as_view(), name="order-list-create"),
     path("orders/<int:pk>/", OrderDetailView.as_view(), name="order-detail"),

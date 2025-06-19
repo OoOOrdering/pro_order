@@ -2,14 +2,16 @@ from django.urls import path
 
 from .views import OrderStatusLogDetailView, OrderStatusLogListCreateView
 
+app_name = "order_status_log"
+
 urlpatterns = [
     path(
-        "order-status-logs/",
+        "",
         OrderStatusLogListCreateView.as_view(),
         name="order-status-log-list-create",
     ),
     path(
-        "order-status-logs/<int:pk>/",
+        "<int:pk>/",
         OrderStatusLogDetailView.as_view(),
         name="order-status-log-detail",
     ),

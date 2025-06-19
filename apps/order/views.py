@@ -1,6 +1,7 @@
 import csv
 from io import BytesIO
 
+from django.db.models import Count
 from django.http import HttpResponse
 from django.utils import timezone
 from django_filters.rest_framework import DjangoFilterBackend
@@ -8,6 +9,8 @@ from reportlab.pdfgen import canvas
 from rest_framework import filters, generics, permissions, serializers, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
+
+from utils.response import BaseResponseMixin
 
 from .models import Order
 from .serializers import (
@@ -19,7 +22,7 @@ from .serializers import (
 )
 
 
-class OrderListCreateView(generics.ListCreateAPIView):
+class OrderListCreateView(BaseResponseMixin, generics.ListCreateAPIView):
     queryset = Order.objects.all()
     serializer_class = OrderSerializer
     permission_classes = [permissions.IsAuthenticated]
@@ -33,10 +36,15 @@ class OrderListCreateView(generics.ListCreateAPIView):
     ordering_fields = ["created_at", "total_amount", "status"]
 
     def get_queryset(self):
-        # 관리자는 모든 주문 조회, 일반 사용자는 본인 주문만 조회
+        # 예시: 필요한 필드만 조회
+        qs = (
+            Order.objects.select_related("user", "payment")
+            .prefetch_related("items")
+            .only("id", "user", "order_number", "status", "created_at")
+        )
         if self.request.user.is_staff:
-            return Order.objects.all()
-        return Order.objects.filter(user=self.request.user)
+            return qs
+        return qs.filter(user=self.request.user)
 
     def get_serializer_class(self):
         if self.request.method == "POST":
@@ -46,6 +54,15 @@ class OrderListCreateView(generics.ListCreateAPIView):
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
 
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        order = serializer.instance
+        output_serializer = OrderSerializer(order, context=self.get_serializer_context())
+        self.logger.info(f"Order created by {request.user.email if request.user.is_authenticated else 'anonymous'}")
+        return self.success(data=output_serializer.data, message="주문이 생성되었습니다.", status=201)
+
 
 class OrderDetailView(generics.RetrieveUpdateDestroyAPIView):
     queryset = Order.objects.all()
@@ -54,10 +71,10 @@ class OrderDetailView(generics.RetrieveUpdateDestroyAPIView):
     lookup_field = "pk"
 
     def get_queryset(self):
-        # 관리자는 모든 주문 조회, 일반 사용자는 본인 주문만 조회/수정/삭제
+        qs = Order.objects.select_related("user", "payment").prefetch_related("items")
         if self.request.user.is_staff:
-            return Order.objects.all()
-        return Order.objects.filter(user=self.request.user)
+            return qs
+        return qs.filter(user=self.request.user)
 
     def get_serializer_class(self):
         if self.request.method in ["PUT", "PATCH"]:

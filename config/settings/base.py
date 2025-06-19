@@ -39,6 +39,7 @@ CACHE_TTL = 60 * 15  # 15 minutesn/5.2/ref/settings/
 
 # 이메일 보낼 때 SSL 인증서 경로 인식 불가 시 설정
 import os
+import sys
 from datetime import timedelta
 from pathlib import Path
 
@@ -53,19 +54,96 @@ BASE_DIR = Path(__file__).resolve().parent.parent.parent
 # dotenv_values 메서드는 env 파일의 경로를 파라미터로 전달 받아 해당 파일을 읽어온 후 Key, Value 형태로 매핑하여 dict로 반환합니다.
 ENV = dotenv_values(BASE_DIR / "envs/.env")
 
-# Quick-start development settings - unsuitable for production
-# See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
-
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = ENV.get(
     "DJANGO_SECRET_KEY",
     "django-insecure-k-=4gg*i3t49&!8i14gwzuvnd+wtfsr7ihtbny-s#po8%50y@p",
 )
 
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = ENV.get("DJANGO_DEBUG", "True").lower() == "true"
+# 테스트 모드 감지 (sys.argv, 환경 변수, pytest 모듈)
+TESTING = any(
+    [len(sys.argv) > 1 and sys.argv[1] == "test", os.environ.get("DJANGO_TESTING") == "True", "pytest" in sys.modules]
+)
 
-ALLOWED_HOSTS = ENV.get("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")
+# URL Configuration
+ROOT_URLCONF = "config.urls.urls_dev"
+
+# WSGI Configuration
+WSGI_APPLICATION = "config.wsgi.application"
+
+# Application definition
+DJANGO_APPS = [
+    "django.contrib.admin",
+    "django.contrib.auth",
+    "django.contrib.contenttypes",
+    "django.contrib.sessions",
+    "django.contrib.messages",
+    "django.contrib.staticfiles",
+]
+
+THIRD_PARTY_APPS = [
+    "rest_framework",
+    "rest_framework_simplejwt",
+    "django_filters",
+    "corsheaders",
+]
+
+PROJECT_APPS = [
+    "apps.analytics",
+    "apps.chat_message",
+    "apps.chat_room",
+    "apps.cs_post",
+    "apps.cs_reply",
+    "apps.dashboard_summary",
+    "apps.faq",
+    "apps.image",
+    "apps.like",
+    "apps.notice",
+    "apps.notification",
+    "apps.order.apps.OrderConfig",
+    "apps.order_status_log",
+    "apps.preset_message",
+    "apps.progress",
+    "apps.review",
+    "apps.user",
+    "apps.work",
+]
+
+INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + PROJECT_APPS
+
+# Middleware
+MIDDLEWARE = [
+    "django.middleware.security.SecurityMiddleware",
+    "django.contrib.sessions.middleware.SessionMiddleware",
+    "corsheaders.middleware.CorsMiddleware",
+    "django.middleware.common.CommonMiddleware",
+    "django.middleware.csrf.CsrfViewMiddleware",
+    "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "django.contrib.messages.middleware.MessageMiddleware",
+    "django.middleware.clickjacking.XFrameOptionsMiddleware",
+]
+
+# Template Configuration
+TEMPLATES = [
+    {
+        "BACKEND": "django.template.backends.django.DjangoTemplates",
+        "DIRS": [BASE_DIR / "templates"],
+        "APP_DIRS": True,
+        "OPTIONS": {
+            "context_processors": [
+                "django.template.context_processors.debug",
+                "django.template.context_processors.request",
+                "django.contrib.auth.context_processors.auth",
+                "django.contrib.messages.context_processors.messages",
+            ],
+        },
+    },
+]
+
+# Auth settings
+AUTH_USER_MODEL = "user.User"
+LOGIN_URL = "/api/v1/login/"
+LOGIN_REDIRECT_URL = "/"
 
 # Logging
 LOG_DIR = Path(ENV.get("LOG_DIR", BASE_DIR / "logs"))
@@ -98,22 +176,6 @@ LOGGING = {
             "backupCount": 5,
             "formatter": "verbose",
         },
-        "error_file": {
-            "level": "ERROR",
-            "class": "logging.handlers.RotatingFileHandler",
-            "filename": LOG_DIR / "error.log",
-            "maxBytes": 1024 * 1024 * 5,  # 5 MB
-            "backupCount": 5,
-            "formatter": "verbose",
-        },
-        "request_file": {
-            "level": "INFO",
-            "class": "logging.handlers.RotatingFileHandler",
-            "filename": LOG_DIR / "request.log",
-            "maxBytes": 1024 * 1024 * 5,  # 5 MB
-            "backupCount": 5,
-            "formatter": "verbose",
-        },
     },
     "loggers": {
         "django": {
@@ -121,192 +183,43 @@ LOGGING = {
             "level": "INFO",
             "propagate": True,
         },
-        "django.request": {
-            "handlers": ["request_file"],
-            "level": "INFO",
-            "propagate": False,
-        },
-        "django.server": {
+        "apps": {
             "handlers": ["console", "file"],
             "level": "INFO",
-            "propagate": False,
+            "propagate": True,
         },
-        "apps": {
-            "handlers": ["console", "file", "error_file"],
-            "level": "INFO",
-            "propagate": False,
-        },
-    },
-    "root": {
-        "handlers": ["console", "file"],
-        "level": "INFO",
     },
 }
 
-# Application definition
-
-DJANGO_APPS = [
-    "django.contrib.auth",
-    "django.contrib.contenttypes",
-    "django.contrib.sessions",
-    "django.contrib.messages",
-    "django.contrib.staticfiles",
-    "django.contrib.admin",
-]
-
-# Core apps
-CORE_APPS = [
-    "apps.user",
-    "apps.order",
-    "apps.image",
-]
-
-# Feature apps
-FEATURE_APPS = [
-    "apps.order_status_log",
-    "apps.chat_room",
-    "apps.chat_message",
-    "apps.preset_message",
-    "apps.progress",
-    "apps.review",
-    "apps.like",
-]
-
-# Support apps
-SUPPORT_APPS = [
-    "apps.faq",
-    "apps.cs_post",
-    "apps.cs_reply",
-    "apps.notice",
-]
-
-# Analytics apps
-ANALYTICS_APPS = [
-    "apps.work",
-    "apps.dashboard_summary",
-    "apps.analytics",
-    "apps.notification",
-]
-
-OWN_APPS = CORE_APPS + FEATURE_APPS + SUPPORT_APPS + ANALYTICS_APPS
-
-THIRD_PARTY_APPS = [
-    "rest_framework",
-    "rest_framework_simplejwt",
-    "rest_framework_simplejwt.token_blacklist",
-    "storages",
-    "corsheaders",
-    "drf_yasg",
-    "cloudinary",
-    "django_filters",
-]
-
-INSTALLED_APPS = DJANGO_APPS + OWN_APPS + THIRD_PARTY_APPS
-
-MIDDLEWARE = [
-    "corsheaders.middleware.CorsMiddleware",
-    "django.middleware.security.SecurityMiddleware",
-    "django.contrib.sessions.middleware.SessionMiddleware",
-    "django.middleware.common.CommonMiddleware",
-    "django.middleware.csrf.CsrfViewMiddleware",  # CSRF 보호 활성화
-    "django.contrib.auth.middleware.AuthenticationMiddleware",
-    "django.contrib.messages.middleware.MessageMiddleware",
-    "django.middleware.clickjacking.XFrameOptionsMiddleware",
-]
-
-# Security settings
-SECURE_SSL_REDIRECT = ENV.get("DJANGO_SECURE_SSL_REDIRECT", "False").lower() == "true"
-SESSION_COOKIE_SECURE = ENV.get("DJANGO_SESSION_COOKIE_SECURE", "False").lower() == "true"
-CSRF_COOKIE_SECURE = ENV.get("DJANGO_CSRF_COOKIE_SECURE", "False").lower() == "true"
-SECURE_BROWSER_XSS_FILTER = True
-SECURE_CONTENT_TYPE_NOSNIFF = True
-X_FRAME_OPTIONS = "DENY"
-SECURE_HSTS_SECONDS = 31536000  # 1 year
-SECURE_HSTS_INCLUDE_SUBDOMAINS = True
-SECURE_HSTS_PRELOAD = True
-
-# Session settings
-SESSION_COOKIE_AGE = 1209600  # 2 weeks
-SESSION_COOKIE_HTTPONLY = True
-CSRF_COOKIE_HTTPONLY = True
-SESSION_EXPIRE_AT_BROWSER_CLOSE = False
-
-# CORS settings
-CORS_ALLOWED_ORIGINS = ENV.get("CORS_ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:5173").split(",")
-CORS_ALLOW_CREDENTIALS = True
-CORS_ALLOW_METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
-CORS_ALLOW_HEADERS = [
-    "accept",
-    "accept-encoding",
-    "authorization",
-    "content-type",
-    "dnt",
-    "origin",
-    "user-agent",
-    "x-csrftoken",
-    "x-requested-with",
-]
-
-# 기본경로
-ROOT_URLCONF = "config.urls.urls"
-
-TEMPLATES = [
-    {
-        "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [BASE_DIR / "templates"],
-        "APP_DIRS": True,
-        "OPTIONS": {
-            "context_processors": [
-                "django.template.context_processors.request",
-                "django.contrib.auth.context_processors.auth",
-                "django.contrib.messages.context_processors.messages",
-            ],
-        },
-    },
-]
-
-WSGI_APPLICATION = "config.wsgi.application"
-
-# Database
-DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.postgresql",
-        "NAME": ENV.get("DB_NAME", "pr_order"),
-        "USER": ENV.get("DB_USER", "postgres"),
-        "PASSWORD": ENV.get("DB_PASSWORD", ""),
-        "HOST": ENV.get("DB_HOST", "localhost"),
-        "PORT": ENV.get("DB_PORT", "5432"),
-    },
-}
-
-# Redis Cache Settings
-CACHES = {
-    "default": {
-        "BACKEND": "django_redis.cache.RedisCache",
-        "LOCATION": ENV.get("REDIS_URL", "redis://127.0.0.1:6379/1"),
-        "OPTIONS": {
-            "CLIENT_CLASS": "django_redis.client.DefaultClient",
-            "RETRY_ON_TIMEOUT": True,
-            "MAX_CONNECTIONS": 100,
-            "CONNECTION_POOL_KWARGS": {
-                "retry_on_timeout": True,
-                "socket_connect_timeout": 5,
-                "socket_timeout": 5,
-            },
-            "SOCKET_TIMEOUT": 5,
-            "SOCKET_CONNECT_TIMEOUT": 5,
-            "RETRY_TIMES": 3,
-            "IGNORE_EXCEPTIONS": True,
-        },
+# Redis Cache Settings - 테스트 시에는 LocMemCache 사용
+if TESTING:
+    CACHES = {
+        "default": {
+            "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+            "LOCATION": "unique-snowflake",
+        }
     }
-}
-
-# Cache session backend
-SESSION_ENGINE = "django.contrib.sessions.backends.cache"
-SESSION_CACHE_ALIAS = "default"
-
-# Cache timeout settings
-CACHE_TTL = 60 * 15  # 15 minutes
+else:
+    CACHES = {
+        "default": {
+            "BACKEND": "django_redis.cache.RedisCache",
+            "LOCATION": ENV.get("REDIS_URL", "redis://127.0.0.1:6379/1"),
+            "OPTIONS": {
+                "CLIENT_CLASS": "django_redis.client.DefaultClient",
+                "RETRY_ON_TIMEOUT": True,
+                "MAX_CONNECTIONS": 100,
+                "CONNECTION_POOL_KWARGS": {
+                    "retry_on_timeout": True,
+                    "socket_connect_timeout": 5,
+                    "socket_timeout": 5,
+                },
+                "SOCKET_TIMEOUT": 5,
+                "SOCKET_CONNECT_TIMEOUT": 5,
+                "RETRY_TIMES": 3,
+                "IGNORE_EXCEPTIONS": True,
+            },
+        }
+    }
 
 # Cache session backend
 SESSION_ENGINE = "django.contrib.sessions.backends.cache"
@@ -317,30 +230,29 @@ CACHE_TTL = 60 * 15  # 15 minutes
 
 # REST Framework settings
 REST_FRAMEWORK = {
-    "DEFAULT_THROTTLE_CLASSES": [
-        "rest_framework.throttling.AnonRateThrottle",
-        "rest_framework.throttling.UserRateThrottle",
-    ],
-    "DEFAULT_THROTTLE_RATES": {
-        "anon": "100/day",  # 익명 사용자: 하루 100회 요청 제한
-        "user": "1000/day",  # 인증된 사용자: 하루 1000회 요청 제한
-        "login": "5/minute",  # 로그인 시도: 분당 5회 제한 (추후 CustomThrottle 사용)
-    },
-    "DEFAULT_AUTHENTICATION_CLASSES": [
-        "rest_framework_simplejwt.authentication.JWTAuthentication",
-        "rest_framework.authentication.SessionAuthentication",
-    ],
-    "DEFAULT_PERMISSION_CLASSES": [
-        "rest_framework.permissions.IsAuthenticated",
-    ],
-    "DEFAULT_FILTER_BACKENDS": [
-        "django_filters.rest_framework.DjangoFilterBackend",
-        "rest_framework.filters.SearchFilter",
-        "rest_framework.filters.OrderingFilter",
-    ],
+    "DEFAULT_AUTHENTICATION_CLASSES": ("rest_framework_simplejwt.authentication.JWTAuthentication",),
+    "DEFAULT_PERMISSION_CLASSES": ("rest_framework.permissions.IsAuthenticated",),
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
     "PAGE_SIZE": 10,
 }
+
+# JWT settings
+SIMPLE_JWT = {
+    "ACCESS_TOKEN_LIFETIME": timedelta(hours=1),
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
+    "ROTATE_REFRESH_TOKENS": True,
+    "BLACKLIST_AFTER_ROTATION": True,
+    "UPDATE_LAST_LOGIN": True,
+    "AUTH_HEADER_TYPES": ("Bearer",),
+    "AUTH_TOKEN_CLASSES": ("rest_framework_simplejwt.tokens.AccessToken",),
+    "USER_ID_FIELD": "id",
+    "USER_ID_CLAIM": "user_id",
+    "SIGNING_KEY": SECRET_KEY,
+}
+
+# Cache timeout settings
+EMAIL_VERIFICATION_TIMEOUT_MINUTES = 30
+PASSWORD_RESET_TIMEOUT_MINUTES = 30
 
 # Simple JWT settings
 SIMPLE_JWT = {
@@ -442,3 +354,50 @@ CLOUDINARY_API_SECRET = ENV.get("CLOUDINARY_API_SECRET", "")
 # Login attempt limits
 LOGIN_ATTEMPTS_LIMIT = int(ENV.get("LOGIN_ATTEMPTS_LIMIT", 5))
 LOGIN_LOCKOUT_TIME = int(ENV.get("LOGIN_LOCKOUT_TIME", 300))  # seconds
+
+# --- 보안 관련 옵션 및 환경별 분리 가이드 ---
+# - prod.py: SECURE_SSL_REDIRECT, SESSION_COOKIE_SECURE, CSRF_COOKIE_SECURE, HSTS 등 True/강화
+# - local.py: 개발 편의상 False, CORS 허용 등
+# - 모든 민감 정보(SECRET_KEY, DB, EMAIL 등)는 ENV로만 관리
+# - SIMPLE_JWT/쿠키/CSRF 옵션은 prod에서 Secure/HttpOnly/SameSite=Strict 권장
+# - settings 구조 및 override 주석 보강
+
+# SIMPLE_JWT 예시 (prod 환경에서 쿠키 Secure/HttpOnly/SameSite 적용 필요)
+SIMPLE_JWT["REFRESH_TOKEN_NAME"] = "refresh_token"  # 쿠키명
+# prod.py에서 쿠키 set_cookie 시 secure=True, httponly=True, samesite="Strict" 권장
+
+# CSRF/SESSION 쿠키 옵션 (prod.py에서 Secure/HttpOnly/SameSite=Strict)
+# prod.py 예시:
+# SESSION_COOKIE_SECURE = True
+# CSRF_COOKIE_SECURE = True
+# SESSION_COOKIE_SAMESITE = "Strict"
+# CSRF_COOKIE_SAMESITE = "Strict"
+
+# 이메일/DB/클라우드 등 민감 정보는 반드시 ENV에서만 읽도록 유지
+
+# --- Celery 설정 ---
+CELERY_BROKER_URL = ENV.get("CELERY_BROKER_URL", "redis://127.0.0.1:6379/1")
+CELERY_RESULT_BACKEND = ENV.get("CELERY_RESULT_BACKEND", CELERY_BROKER_URL)
+CELERY_ACCEPT_CONTENT = ["json"]
+CELERY_TASK_SERIALIZER = "json"
+CELERY_RESULT_SERIALIZER = "json"
+CELERY_TIMEZONE = TIME_ZONE
+
+# --- Sentry 연동 (운영 환경에서만 활성화 권장) ---
+SENTRY_DSN = ENV.get("SENTRY_DSN", "")
+if SENTRY_DSN:
+    import sentry_sdk
+
+    sentry_sdk.init(
+        dsn=SENTRY_DSN,
+        traces_sample_rate=0.2,
+        environment=ENV.get("DJANGO_ENV", "local"),
+    )
+
+# Sentry 연동 예시
+# import sentry_sdk
+# sentry_sdk.init(dsn=os.environ.get('SENTRY_DSN'), traces_sample_rate=1.0)
+
+# drf-yasg: INSTALLED_APPS에 'drf_yasg' 추가, urls.py에 schema_view 등록
+# Django Debug Toolbar: INSTALLED_APPS/MIDDLEWARE에 'debug_toolbar' 추가, INTERNAL_IPS 설정
+# 운영 자동화/모니터링 도구는 prod/local 환경에 맞게 분기 적용 권장

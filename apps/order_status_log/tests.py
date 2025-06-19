@@ -4,261 +4,162 @@ import pytest
 from django.urls import reverse
 from django.utils import timezone
 from rest_framework import status
-from rest_framework.test import APIClient
 
 from apps.order.models import Order
 from apps.order_status_log.models import OrderStatusLog
-from apps.user.models import User
 
 
 @pytest.fixture
-def api_client():
-    return APIClient()
-
-
-@pytest.fixture
-def create_user():
-    def _create_user(email, password, is_staff=False, **kwargs):
-        return User.objects.create_user(email=email, password=password, is_staff=is_staff, is_active=True, **kwargs)
-
-    return _create_user
-
-
-@pytest.fixture
-def authenticate_client(api_client, create_user):
-    def _authenticate_client(user=None, is_staff=False):
-        if user is None:
-            user = create_user(
-                email=f"test_user_{timezone.now().timestamp()}@example.com",
-                password="testpass123!",
-                is_staff=is_staff,
-            )
-        login_url = reverse("user:token_login")
-        response = api_client.post(login_url, {"email": user.email, "password": "testpass123!"})
-        access_token = response.data["data"]["access_token"]
-        api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {access_token}")
-        return user
-
-    return _authenticate_client
-
-
-@pytest.fixture
-def create_order():
-    def _create_order(user, **kwargs):
-        return Order.objects.create(
-            user=user,
-            order_number=f"ORD-{timezone.now().strftime('%Y%m%d%H%M%S%f')}",
-            status=Order.OrderStatus.PENDING,
-            total_amount="100.00",
-            payment_method="Credit Card",
-            payment_status="PAID",
-            shipping_address="123 Test St",
-            shipping_phone="123-456-7890",
-            shipping_name="Test Recipient",
-            **kwargs,
-        )
-
-    return _create_order
-
-
-@pytest.fixture
-def create_order_status_log():
-    def _create_log(order, changed_by, **kwargs):
+def create_order_status_log(db):
+    def _create_order_status_log(
+        order,
+        changed_by,
+        previous_status=Order.OrderStatus.PENDING,
+        new_status=Order.OrderStatus.PROCESSING,
+        reason="Test reason",
+        memo="Test memo",
+    ):
         return OrderStatusLog.objects.create(
             order=order,
-            previous_status=order.status,
-            new_status=Order.OrderStatus.PROCESSING,
-            reason="Order status changed manually",
+            previous_status=previous_status,
+            new_status=new_status,
             changed_by=changed_by,
-            **kwargs,
+            reason=reason,
+            memo=memo,
         )
 
-    return _create_log
+    return _create_order_status_log
 
 
 @pytest.mark.django_db
 class TestOrderStatusLogAPI:
-    def test_create_order_status_log_by_staff(self, api_client, authenticate_client, create_order):
-        staff_user = authenticate_client(is_staff=True)
+    def test_create_order_status_log_by_staff(self, authenticated_client, create_order):
+        client, staff_user = authenticated_client(is_staff=True)
         order = create_order(user=staff_user)
         url = reverse("order_status_log:order-status-log-list-create")
         data = {
             "order": order.pk,
-            "new_status": "PROCESSING",
+            "new_status": Order.OrderStatus.PROCESSING,
             "reason": "Initial status change",
+            "memo": "Processing started",
         }
-        response = api_client.post(url, data, format="json")
-        assert response.status_code == status.HTTP_201_CREATED
-        assert OrderStatusLog.objects.count() == 1
-        assert response.data["new_status"] == "PROCESSING"
+        response = client.post(url, data, format="json")
+        assert response.status_code == status.HTTP_405_METHOD_NOT_ALLOWED
+        assert OrderStatusLog.objects.count() == 0
+        assert response.data["detail"].startswith("주문 상태 로그는 직접 생성할 수 없습니다")
 
-    def test_create_order_status_log_by_normal_user_fails(self, api_client, authenticate_client, create_order):
-        normal_user = authenticate_client()
+    def test_create_order_status_log_by_normal_user_fails(self, authenticated_client, create_order):
+        client, normal_user = authenticated_client()
         order = create_order(user=normal_user)
         url = reverse("order_status_log:order-status-log-list-create")
-        data = {
-            "order": order.pk,
-            "new_status": "PROCESSING",
-            "reason": "Attempt to change status",
-        }
-        response = api_client.post(url, data, format="json")
-        assert response.status_code == status.HTTP_403_FORBIDDEN
+        data = {"order": order.pk, "new_status": Order.OrderStatus.PROCESSING, "reason": "Attempt to change status"}
+        response = client.post(url, data, format="json")
+        assert response.status_code == status.HTTP_405_METHOD_NOT_ALLOWED
+        assert OrderStatusLog.objects.count() == 0
+        assert response.data["detail"].startswith("주문 상태 로그는 직접 생성할 수 없습니다")
 
-    def test_get_order_status_log_list_by_staff(
-        self,
-        api_client,
-        authenticate_client,
-        create_order_status_log,
-        create_order,
-    ):
-        staff_user = authenticate_client(is_staff=True)
-        user1 = create_user("user1@example.com", "testpass123!")
-        user2 = create_user("user2@example.com", "testpass123!")
-        order1 = create_order(user=user1)
-        order2 = create_order(user=user2)
-        create_order_status_log(order=order1, changed_by=staff_user)
+    def test_get_order_status_log_list(self, authenticated_client, create_order, create_order_status_log):
+        client, staff_user = authenticated_client(is_staff=True)
+        order = create_order(user=staff_user)
+        # Create multiple logs
+        create_order_status_log(order=order, changed_by=staff_user)
         create_order_status_log(
-            order=order2,
+            order=order,
             changed_by=staff_user,
-            previous_status="PROCESSING",
-            new_status="COMPLETED",
+            previous_status=Order.OrderStatus.PROCESSING,
+            new_status=Order.OrderStatus.COMPLETED,
         )
 
         url = reverse("order_status_log:order-status-log-list-create")
-        response = api_client.get(url)
+        response = client.get(url)
         assert response.status_code == status.HTTP_200_OK
         assert len(response.data["results"]) == 2
 
-    def test_get_order_status_log_list_by_normal_user_sees_only_own_orders(
-        self,
-        api_client,
-        authenticate_client,
-        create_order_status_log,
-        create_user,
-        create_order,
-    ):
-        normal_user = authenticate_client()
-        other_user = create_user("otheruser@example.com", "testpass123!")
-        order_for_user = create_order(user=normal_user)
-        order_for_other = create_order(user=other_user)
-        staff_user = create_user("staff_for_log@example.com", "testpass123!", is_staff=True)
-
-        create_order_status_log(order=order_for_user, changed_by=staff_user)
-        create_order_status_log(order=order_for_other, changed_by=staff_user)
-
-        url = reverse("order_status_log:order-status-log-list-create")
-        response = api_client.get(url)
-        assert response.status_code == status.HTTP_200_OK
-        assert len(response.data["results"]) == 1
-        assert response.data["results"][0]["order"] == order_for_user.pk
-
-    def test_filter_order_status_log_by_new_status(
-        self,
-        api_client,
-        authenticate_client,
-        create_order_status_log,
-        create_order,
-    ):
-        staff_user = authenticate_client(is_staff=True)
-        order1 = create_order(user=staff_user, status=Order.OrderStatus.PENDING)
-        order2 = create_order(user=staff_user, status=Order.OrderStatus.PENDING)
-        log1 = create_order_status_log(order=order1, changed_by=staff_user, new_status=Order.OrderStatus.PROCESSING)
-        log2 = create_order_status_log(order=order2, changed_by=staff_user, new_status=Order.OrderStatus.COMPLETED)
-
-        url = reverse("order_status_log:order-status-log-list-create") + "?new_status=PROCESSING"
-        response = api_client.get(url)
-        assert response.status_code == status.HTTP_200_OK
-        assert len(response.data["results"]) == 1
-        assert response.data["results"][0]["id"] == log1.pk
-
-    def test_search_order_status_log_by_order_number(
-        self,
-        api_client,
-        authenticate_client,
-        create_order_status_log,
-        create_order,
-    ):
-        staff_user = authenticate_client(is_staff=True)
-        order1 = create_order(user=staff_user, order_number="ORD-1111")
-        order2 = create_order(user=staff_user, order_number="ORD-2222")
-        log1 = create_order_status_log(order=order1, changed_by=staff_user, reason="Log for order 1111")
-        log2 = create_order_status_log(order=order2, changed_by=staff_user, reason="Log for order 2222")
-
-        url = reverse("order_status_log:order-status-log-list-create") + "?search=1111"
-        response = api_client.get(url)
-        assert response.status_code == status.HTTP_200_OK
-        assert len(response.data["results"]) == 1
-        assert response.data["results"][0]["order"] == order1.pk
-
-    def test_sort_order_status_log_by_created_at(
-        self,
-        api_client,
-        authenticate_client,
-        create_order_status_log,
-        create_order,
-    ):
-        staff_user = authenticate_client(is_staff=True)
-        order1 = create_order(user=staff_user)
-        order2 = create_order(user=staff_user)
-        log1 = create_order_status_log(
-            order=order1, changed_by=staff_user, created_at=timezone.now() - timedelta(days=2)
-        )
-        log2 = create_order_status_log(
-            order=order2, changed_by=staff_user, created_at=timezone.now() - timedelta(days=1)
-        )
-
-        url = reverse("order_status_log:order-status-log-list-create") + "?ordering=created_at"
-        response = api_client.get(url)
-        assert response.status_code == status.HTTP_200_OK
-        assert response.data["results"][0]["id"] == log1.pk
-        assert response.data["results"][1]["id"] == log2.pk
-
-    def test_get_order_status_log_detail_by_staff(
-        self,
-        api_client,
-        authenticate_client,
-        create_order_status_log,
-        create_order,
-    ):
-        staff_user = authenticate_client(is_staff=True)
+    def test_get_order_status_log_detail(self, authenticated_client, create_order, create_order_status_log):
+        client, staff_user = authenticated_client(is_staff=True)
         order = create_order(user=staff_user)
         log = create_order_status_log(order=order, changed_by=staff_user)
-        url = reverse("order_status_log:order-status-log-detail", kwargs={"pk": log.pk})
-        response = api_client.get(url)
+
+        url = reverse("order_status_log:order-status-log-detail", args=[log.pk])
+        response = client.get(url)
         assert response.status_code == status.HTTP_200_OK
         assert response.data["id"] == log.pk
+        assert response.data["order"] == order.pk
+        assert response.data["memo"] == "Test memo"
 
-    def test_get_order_status_log_detail_by_normal_user_for_own_order(
-        self,
-        api_client,
-        authenticate_client,
-        create_order_status_log,
-        create_order,
-    ):
-        normal_user = authenticate_client()
-        order = create_order(user=normal_user)
-        staff_user = create_user("staff_for_detail@example.com", "testpass123!", is_staff=True)
-        log = create_order_status_log(order=order, changed_by=staff_user)
+    def test_filter_order_status_logs(self, authenticated_client, create_order, create_order_status_log):
+        client, staff_user = authenticated_client(is_staff=True)
+        order = create_order(user=staff_user)
 
-        url = reverse("order_status_log:order-status-log-detail", kwargs={"pk": log.pk})
-        response = api_client.get(url)
+        # Create logs with different statuses
+        create_order_status_log(
+            order=order,
+            changed_by=staff_user,
+            previous_status=Order.OrderStatus.PENDING,
+            new_status=Order.OrderStatus.PROCESSING,
+        )
+        create_order_status_log(
+            order=order,
+            changed_by=staff_user,
+            previous_status=Order.OrderStatus.PROCESSING,
+            new_status=Order.OrderStatus.COMPLETED,
+        )
+
+        url = reverse("order_status_log:order-status-log-list-create")
+
+        # Filter by new_status
+        response = client.get(f"{url}?new_status=COMPLETED")
         assert response.status_code == status.HTTP_200_OK
-        assert response.data["id"] == log.pk
+        assert len(response.data["results"]) == 1
+        assert response.data["results"][0]["new_status"] == Order.OrderStatus.COMPLETED
 
-    def test_get_order_status_log_detail_by_normal_user_for_other_order_fails(
-        self,
-        api_client,
-        authenticate_client,
-        create_order_status_log,
-        create_user,
-        create_order,
-    ):
-        normal_user = authenticate_client()
-        other_user = create_user("another_user_for_log@example.com", "testpass123!")
-        order = create_order(user=other_user)
-        staff_user = create_user("staff_for_other_order@example.com", "testpass123!", is_staff=True)
-        log = create_order_status_log(order=order, changed_by=staff_user)
+        # Filter by previous_status
+        response = client.get(f"{url}?previous_status=PROCESSING")
+        assert response.status_code == status.HTTP_200_OK
+        assert len(response.data["results"]) == 1
+        assert response.data["results"][0]["previous_status"] == Order.OrderStatus.PROCESSING
 
-        url = reverse("order_status_log:order-status-log-detail", kwargs={"pk": log.pk})
-        response = api_client.get(url)
-        assert response.status_code == status.HTTP_403_FORBIDDEN
+    def test_search_order_status_logs(self, authenticated_client, create_order, create_order_status_log):
+        client, staff_user = authenticated_client(is_staff=True)
+        order = create_order(user=staff_user)
+
+        # Create log with specific reason and memo
+        create_order_status_log(
+            order=order, changed_by=staff_user, reason="Customer requested cancellation", memo="Refund processed"
+        )
+
+        url = reverse("order_status_log:order-status-log-list-create")
+
+        # Search by reason
+        response = client.get(f"{url}?search=cancellation")
+        assert response.status_code == status.HTTP_200_OK
+        assert len(response.data["results"]) == 1
+        assert "cancellation" in response.data["results"][0]["reason"].lower()
+
+        # Search by memo
+        response = client.get(f"{url}?search=refund")
+        assert response.status_code == status.HTTP_200_OK
+        assert len(response.data["results"]) == 1
+        assert "refund" in response.data["results"][0]["memo"].lower()
+
+    def test_order_status_log_ordering(self, authenticated_client, create_order, create_order_status_log):
+        client, staff_user = authenticated_client(is_staff=True)
+        order = create_order(user=staff_user)
+
+        # Create logs with different timestamps
+        log1 = create_order_status_log(order=order, changed_by=staff_user, reason="First status change")
+        log2 = create_order_status_log(order=order, changed_by=staff_user, reason="Second status change")
+
+        url = reverse("order_status_log:order-status-log-list-create")
+
+        # Test descending order (default)
+        response = client.get(f"{url}?ordering=-created_at")
+        assert response.status_code == status.HTTP_200_OK
+        assert response.data["results"][0]["id"] == log2.id
+        assert response.data["results"][1]["id"] == log1.id
+
+        # Test ascending order
+        response = client.get(f"{url}?ordering=created_at")
+        assert response.status_code == status.HTTP_200_OK
+        assert response.data["results"][0]["id"] == log1.id
+        assert response.data["results"][1]["id"] == log2.id

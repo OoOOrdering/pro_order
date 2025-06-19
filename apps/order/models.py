@@ -44,11 +44,20 @@ class Order(models.Model):
         return f"{self.order_number} - {self.user.email}"
 
     def save(self, *args, **kwargs):
+        status_changed = False
         if self.pk is not None:
             old_instance = Order.objects.get(pk=self.pk)
             if old_instance.status != self.status:
-                # OrderStatusLog 생성은 signals.py에서 처리
-                pass
+                status_changed = True
+                from apps.order_status_log.models import OrderStatusLog
+
+                OrderStatusLog.objects.create(
+                    order=self,
+                    previous_status=old_instance.status,
+                    new_status=self.status,
+                    reason="상태 변경",
+                    changed_by=self.user,
+                )
         super().save(*args, **kwargs)
 
 

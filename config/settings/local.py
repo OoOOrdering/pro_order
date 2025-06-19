@@ -11,6 +11,40 @@ DEBUG = True
 
 ALLOWED_HOSTS = ["localhost", "127.0.0.1"]
 
+# 테스트 환경 체크
+TESTING = os.environ.get("DJANGO_TESTING") == "True"
+
+# 테스트 환경을 위한 캐시 설정
+if TESTING:
+    CACHES = {
+        "default": {
+            "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+            "LOCATION": "unique-snowflake",
+            "OPTIONS": {"IGNORE_EXCEPTIONS": True},
+        }
+    }
+else:
+    CACHES = {
+        "default": {
+            "BACKEND": "django_redis.cache.RedisCache",
+            "LOCATION": ENV.get("REDIS_URL", "redis://127.0.0.1:6379/1"),
+            "OPTIONS": {
+                "CLIENT_CLASS": "django_redis.client.DefaultClient",
+                "RETRY_ON_TIMEOUT": True,
+                "MAX_CONNECTIONS": 100,
+                "CONNECTION_POOL_KWARGS": {
+                    "retry_on_timeout": True,
+                    "socket_connect_timeout": 5,
+                    "socket_timeout": 5,
+                },
+                "SOCKET_TIMEOUT": 5,
+                "SOCKET_CONNECT_TIMEOUT": 5,
+                "RETRY_TIMES": 3,
+                "IGNORE_EXCEPTIONS": True,
+            },
+        }
+    }
+
 # Database
 DATABASES = {
     "default": {
@@ -118,6 +152,7 @@ SIMPLE_JWT = {
     "JTI_CLAIM": "jti",
     "SLIDING_TOKEN_LIFETIME": timedelta(minutes=5),
     "SLIDING_TOKEN_REFRESH_LIFETIME": timedelta(days=1),
+    "REFRESH_TOKEN_NAME": "refresh_token",
 }
 
 
@@ -220,13 +255,6 @@ INTERNAL_IPS = [
     "127.0.0.1",
 ]
 
-# 캐시 설정
-CACHES = {
-    "default": {
-        "BACKEND": "django_redis.cache.RedisCache",
-        "LOCATION": "redis://127.0.0.1:6379/1",
-        "OPTIONS": {
-            "CLIENT_CLASS": "django_redis.client.DefaultClient",
-        },
-    }
-}
+AUTHENTICATION_BACKENDS = [
+    "django.contrib.auth.backends.ModelBackend",
+]

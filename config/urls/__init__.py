@@ -1,3 +1,1 @@
-# from .urls_dev import *
-
-# from .urls_prod import *
+from .urls_dev import *

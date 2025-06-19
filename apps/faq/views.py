@@ -1,12 +1,14 @@
-from django.db.models import Q
+from django.db.models import Count, Q
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import filters, generics, permissions
+
+from utils.response import BaseResponseMixin
 
 from .models import FAQ
 from .serializers import FAQCreateUpdateSerializer, FAQSerializer
 
 
-class FAQListCreateView(generics.ListCreateAPIView):
+class FAQListCreateView(BaseResponseMixin, generics.ListCreateAPIView):
     queryset = FAQ.objects.all()
     serializer_class = FAQSerializer
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
@@ -26,7 +28,8 @@ class FAQListCreateView(generics.ListCreateAPIView):
     ordering = ["-created_at"]
 
     def get_queryset(self):
-        queryset = FAQ.objects.all()
+        # 예시: 필요한 필드만 조회
+        queryset = FAQ.objects.only("id", "question", "answer", "category", "is_published", "created_at")
 
         # 관리자가 아니면 is_published=True인 FAQ만 조회
         if not self.request.user.is_staff:
@@ -53,6 +56,14 @@ class FAQListCreateView(generics.ListCreateAPIView):
         if not self.request.user.is_staff:
             self.permission_denied(self.request)
         serializer.save()
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        data = serializer.data
+        self.logger.info(f"FAQ created by {request.user.email if request.user.is_authenticated else 'anonymous'}")
+        return self.success(data=data, message="FAQ가 생성되었습니다.", status=201)
 
 
 class FAQDetailView(generics.RetrieveUpdateDestroyAPIView):

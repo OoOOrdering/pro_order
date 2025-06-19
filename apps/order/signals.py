@@ -17,6 +17,8 @@ def create_order_status_log(sender, instance, **kwargs):
                     order=instance,
                     previous_status=old_instance.status,
                     new_status=instance.status,
+                    reason="상태 변경",
+                    changed_by=instance.user,
                 )
         except Order.DoesNotExist:
             pass

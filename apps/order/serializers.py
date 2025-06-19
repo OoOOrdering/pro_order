@@ -1,23 +1,25 @@
 from rest_framework import serializers
 
 from apps.user.serializers import UserSerializer  # UserSerializer가 필요하다고 가정
+from utils.serializers import BaseSerializer
 
 from .models import Order, OrderItem, OrderPayment
 
 
-class OrderItemSerializer(serializers.ModelSerializer):
+class OrderItemSerializer(BaseSerializer):
     class Meta:
         model = OrderItem
         fields = "__all__"
+        read_only_fields = ("order",)
 
 
-class OrderPaymentSerializer(serializers.ModelSerializer):
+class OrderPaymentSerializer(BaseSerializer):
     class Meta:
         model = OrderPayment
         fields = "__all__"
 
 
-class OrderSerializer(serializers.ModelSerializer):
+class OrderSerializer(BaseSerializer):
     user = UserSerializer(read_only=True)
     items = OrderItemSerializer(many=True, read_only=True)
     payment = OrderPaymentSerializer(read_only=True)

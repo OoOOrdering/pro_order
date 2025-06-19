@@ -40,21 +40,27 @@ schema_view = get_schema_view(
 )
 
 urlpatterns = [
+    # Admin
     path("admin/", admin.site.urls),
-    path("api/users/", include("apps.user.urls")),
-    path("api/images/", include("apps.image.urls")),
-    path("api/orders/", include("apps.order.urls")),
-    path("api/order-status-logs/", include("apps.order_status_log.urls")),
-    path("api/works/", include("apps.work.urls")),
-    path("api/chat-rooms/", include("apps.chat_room.urls")),
-    path("api/chat-messages/", include("apps.chat_message.urls")),
-    path("api/notices/", include("apps.notice.urls")),
-    path("api/reviews/", include("apps.review.urls")),
-    path("api/preset-messages/", include("apps.preset_message.urls")),
-    path("api/faqs/", include("apps.faq.urls")),
-    path("api/cs_posts/", include("apps.cs_post.urls")),
-    path("api/cs_replies/", include("apps.cs_reply.urls")),
-    path("api/notifications/", include("apps.notification.urls")),
+    # API URLs
+    path("api/v1/analytics/", include("apps.analytics.urls", namespace="analytics")),
+    path("api/v1/users/", include("apps.user.urls")),
+    path("api/v1/images/", include("apps.image.urls")),
+    path("api/v1/orders/", include("apps.order.urls")),
+    path("api/v1/order-status-logs/", include("apps.order_status_log.urls")),
+    path("api/v1/works/", include("apps.work.urls")),
+    path("api/v1/cs-posts/", include("apps.cs_post.urls")),
+    path("api/v1/cs-replies/", include("apps.cs_reply.urls")),
+    path("api/v1/chat-rooms/", include("apps.chat_room.urls")),
+    path("api/v1/chat-rooms/", include("apps.chat_message.urls")),  # chat_message 엔드포인트를 chat-rooms로 변경
+    path("api/v1/dashboard/", include("apps.dashboard_summary.urls")),
+    path("api/v1/faqs/", include("apps.faq.urls")),
+    path("api/v1/likes/", include("apps.like.urls")),
+    path("api/v1/notices/", include("apps.notice.urls")),
+    path("api/v1/notifications/", include("apps.notification.urls")),
+    path("api/v1/preset-messages/", include("apps.preset_message.urls")),
+    path("api/v1/progress/", include("apps.progress.urls")),
+    path("api/v1/reviews/", include("apps.review.urls")),
 ]
 
 if settings.DEBUG:

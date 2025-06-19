@@ -1,12 +1,15 @@
+from django.db.models import Count
 from django.utils import timezone
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import filters, generics, permissions
+
+from utils.response import BaseResponseMixin
 
 from .models import Work
 from .serializers import WorkCreateUpdateSerializer, WorkSerializer
 
 
-class WorkListCreateView(generics.ListCreateAPIView):
+class WorkListCreateView(BaseResponseMixin, generics.ListCreateAPIView):
     serializer_class = WorkSerializer
     permission_classes = [permissions.IsAuthenticated]
     filter_backends = [
@@ -25,10 +28,13 @@ class WorkListCreateView(generics.ListCreateAPIView):
     ordering_fields = ["created_at", "due_date", "status"]
 
     def get_queryset(self):
-        # 관리자는 모든 작업 조회, 일반 사용자는 본인에게 할당된 작업만 조회
+        # 예시: 필요한 필드만 조회
+        qs = Work.objects.select_related("assignee", "order").only(
+            "id", "assignee", "order", "title", "status", "created_at"
+        )
         if self.request.user.is_staff:
-            return Work.objects.all()
-        return Work.objects.filter(assignee=self.request.user)
+            return qs
+        return qs.filter(assignee=self.request.user)
 
     def get_serializer_class(self):
         if self.request.method == "POST":
@@ -46,18 +52,25 @@ class WorkListCreateView(generics.ListCreateAPIView):
 
         serializer.save()
 
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        data = serializer.data
+        self.logger.info(f"Work created by {request.user.email if request.user.is_authenticated else 'anonymous'}")
+        return self.success(data=data, message="작업이 생성되었습니다.", status=201)
 
-class WorkDetailView(generics.RetrieveUpdateDestroyAPIView):
-    queryset = Work.objects.all()
+
+class WorkDetailView(BaseResponseMixin, generics.RetrieveUpdateDestroyAPIView):
     serializer_class = WorkSerializer
     permission_classes = [permissions.IsAuthenticated]
     lookup_field = "pk"
 
     def get_queryset(self):
-        # 관리자는 모든 작업 조회/수정/삭제, 일반 사용자는 본인에게 할당된 작업만 조회/수정/삭제
+        qs = Work.objects.select_related("assignee", "order")
         if self.request.user.is_staff:
-            return Work.objects.all()
-        return Work.objects.filter(assignee=self.request.user)
+            return qs
+        return qs.filter(assignee=self.request.user)
 
     def get_serializer_class(self):
         if self.request.method in ["PUT", "PATCH"]:
@@ -77,8 +90,23 @@ class WorkDetailView(generics.RetrieveUpdateDestroyAPIView):
 
         serializer.save()
 
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop("partial", False)
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+        self.logger.info(f"Work updated by {request.user.email if request.user.is_authenticated else 'anonymous'}")
+        return self.success(data=serializer.data, message="작업이 수정되었습니다.")
+
     def perform_destroy(self, instance):
         # 관리자만 삭제 가능 (할당된 사용자도 삭제 가능하게 할 경우 로직 변경 필요)
         if not self.request.user.is_staff and instance.assignee != self.request.user:
             self.permission_denied(self.request)
         super().perform_destroy(instance)
+
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        self.perform_destroy(instance)
+        self.logger.info(f"Work deleted by {request.user.email if request.user.is_authenticated else 'anonymous'}")
+        return self.success(data=None, message="작업이 삭제되었습니다.", status=204)

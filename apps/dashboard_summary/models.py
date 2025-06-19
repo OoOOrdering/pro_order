@@ -27,5 +27,5 @@ class DashboardSummary(models.Model):
 
     def __str__(self):
         if self.user:
-            return f"Dashboard Summary for {self.user.username}"
+            return f"Dashboard Summary for {self.user.email}"
         return "Global Dashboard Summary"

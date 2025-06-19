@@ -3,11 +3,14 @@ from django.db.models import Q
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import filters, generics, permissions
 
+from utils.response import BaseResponseMixin
+
+from .filters import PresetMessageFilter
 from .models import PresetMessage
 from .serializers import PresetMessageCreateUpdateSerializer, PresetMessageSerializer
 
 
-class PresetMessageListCreateView(generics.ListCreateAPIView):
+class PresetMessageListCreateView(BaseResponseMixin, generics.ListCreateAPIView):
     serializer_class = PresetMessageSerializer
     permission_classes = [permissions.IsAuthenticated]
     filter_backends = [
@@ -15,12 +18,7 @@ class PresetMessageListCreateView(generics.ListCreateAPIView):
         filters.SearchFilter,
         filters.OrderingFilter,
     ]
-    filterset_fields = {
-        "is_active": ["exact"],
-        "user": ["exact"],
-        "created_at": ["gte", "lte"],
-        "updated_at": ["gte", "lte"],
-    }
+    filterset_class = PresetMessageFilter
     search_fields = ["title", "content", "user__username"]
     ordering_fields = ["title", "created_at", "updated_at"]
     ordering = ["title"]
@@ -47,8 +45,18 @@ class PresetMessageListCreateView(generics.ListCreateAPIView):
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
 
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        data = serializer.data
+        self.logger.info(
+            f"PresetMessage created by {request.user.email if request.user.is_authenticated else 'anonymous'}"
+        )
+        return self.success(data=data, message="프리셋 메시지가 생성되었습니다.", status=201)
 
-class PresetMessageDetailView(generics.RetrieveUpdateDestroyAPIView):
+
+class PresetMessageDetailView(BaseResponseMixin, generics.RetrieveUpdateDestroyAPIView):
     serializer_class = PresetMessageSerializer
     permission_classes = [permissions.IsAuthenticated]
     lookup_field = "pk"
@@ -65,8 +73,33 @@ class PresetMessageDetailView(generics.RetrieveUpdateDestroyAPIView):
         if serializer.instance.user != self.request.user and serializer.instance.user is not None:
             self.permission_denied(self.request)
         super().perform_update(serializer)
+        self.logger.info(
+            f"PresetMessage updated by {self.request.user.email if self.request.user.is_authenticated else 'anonymous'}"
+        )
 
     def perform_destroy(self, instance):
         if instance.user != self.request.user and instance.user is not None:
             self.permission_denied(self.request)
         super().perform_destroy(instance)
+        self.logger.info(
+            f"PresetMessage deleted by {self.request.user.email if self.request.user.is_authenticated else 'anonymous'}"
+        )
+
+    def retrieve(self, request, *args, **kwargs):
+        instance = self.get_object()
+        serializer = self.get_serializer(instance)
+        return self.success(data=serializer.data, message="프리셋 메시지 상세 정보를 조회했습니다.")
+
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop("partial", False)
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+        response_serializer = PresetMessageSerializer(instance)
+        return self.success(data=response_serializer.data, message="프리셋 메시지가 수정되었습니다.")
+
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        self.perform_destroy(instance)
+        return self.success(data=None, message="프리셋 메시지가 삭제되었습니다.", status=204)

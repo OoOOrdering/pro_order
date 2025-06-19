@@ -2,6 +2,8 @@ from django.urls import path
 
 from .views import CSReplyDetailView, CSReplyListCreateView
 
+app_name = "cs_reply"
+
 urlpatterns = [
     path(
         "cs-posts/<int:cs_post_pk>/replies/",

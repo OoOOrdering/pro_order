@@ -27,9 +27,13 @@ class ChatMessageSerializer(serializers.ModelSerializer):
 
 
 class ChatMessageCreateSerializer(serializers.ModelSerializer):
+    sender = UserSerializer(read_only=True)
+    read_by = UserSerializer(many=True, read_only=True)
+    is_read = serializers.BooleanField(read_only=True)
+
     class Meta:
         model = ChatMessage
-        fields = ("chat_room", "message_type", "content", "file", "image")
+        fields = ("id", "chat_room", "message_type", "content", "file", "image", "sender", "is_read", "read_by")
 
     def validate(self, data):
         if data["message_type"] == "text" and not data.get("content"):
