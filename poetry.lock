@@ -1988,6 +1988,18 @@ files = [
 pbr = ">=2.0.0"
 
 [[package]]
+name = "types-pytz"
+version = "2025.2.0.20250516"
+description = "Typing stubs for pytz"
+optional = false
+python-versions = ">=3.9"
+groups = ["dev"]
+files = [
+    {file = "types_pytz-2025.2.0.20250516-py3-none-any.whl", hash = "sha256:e0e0c8a57e2791c19f718ed99ab2ba623856b11620cb6b637e5f62ce285a7451"},
+    {file = "types_pytz-2025.2.0.20250516.tar.gz", hash = "sha256:e1216306f8c0d5da6dafd6492e72eb080c9a166171fa80dd7a1990fd8be7a7b3"},
+]
+
+[[package]]
 name = "types-reportlab"
 version = "4.4.1.20250602"
 description = "Typing stubs for reportlab"
@@ -2107,4 +2119,4 @@ dev = ["bandit", "black", "coverage", "django-debug-toolbar", "factory-boy", "fa
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.12,<4.0"
-content-hash = "bc6bce51a2a49a3a9f65719c765ca355901823281ba6f2b255161e5dcc81134d"
+content-hash = "ef29718fdc486af235dbca3e0ccd44a210090f4be72e05ac07bebdf48e36e134"

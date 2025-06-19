@@ -155,13 +155,3 @@ class RecentNoticeListView(generics.ListAPIView):
     def get_queryset(self):
         """게시된 공지사항 중 중요도와 생성일자를 기준으로 정렬된 최신 5개의 공지사항을 반환합니다."""
         return Notice.objects.filter(is_published=True).order_by("-created_at")[:5]
-
-
-class RecentNoticeListView(generics.ListAPIView):
-    """최근 공지사항 5개를 반환하는 뷰입니다."""
-
-    serializer_class = NoticeSerializer
-    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
-
-    def get_queryset(self):
-        return Notice.objects.filter(is_published=True).order_by("-created_at")[:5]

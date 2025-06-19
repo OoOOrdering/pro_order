@@ -42,6 +42,7 @@ import os
 import sys
 from datetime import timedelta
 from pathlib import Path
+from typing import Any
 
 import certifi
 from dotenv import dotenv_values
@@ -193,14 +194,14 @@ LOGGING = {
 
 # Redis Cache Settings - 테스트 시에는 LocMemCache 사용
 if TESTING:
-    CACHES = {
+    CACHES: dict[str, Any] = {
         "default": {
             "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
             "LOCATION": "unique-snowflake",
         }
     }
 else:
-    CACHES = {
+    CACHES: dict[str, Any] = {
         "default": {
             "BACKEND": "django_redis.cache.RedisCache",
             "LOCATION": ENV.get("REDIS_URL", "redis://127.0.0.1:6379/1"),
