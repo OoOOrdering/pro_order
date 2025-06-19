@@ -2119,4 +2119,4 @@ dev = ["bandit", "black", "coverage", "django-debug-toolbar", "factory-boy", "fa
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.12,<4.0"
-content-hash = "ef29718fdc486af235dbca3e0ccd44a210090f4be72e05ac07bebdf48e36e134"
+content-hash = "50da72e102a1f76f2e3af72ff5b71e063fb787d557208a82ccd18e3cb0a4b8f9"
