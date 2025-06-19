@@ -29,7 +29,7 @@ class PresetMessageSerializer(serializers.ModelSerializer):
 
 
 class PresetMessageCreateUpdateSerializer(serializers.ModelSerializer):
-    user = serializers.PrimaryKeyRelatedField(read_only=True)
+    user: serializers.PrimaryKeyRelatedField = serializers.PrimaryKeyRelatedField(read_only=True)
 
     class Meta:
         model = PresetMessage
