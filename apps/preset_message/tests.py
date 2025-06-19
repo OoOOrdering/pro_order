@@ -20,8 +20,8 @@ class TestPresetMessageAPI:
         }
         response = client.post(url, data, format="json")
         assert response.status_code == status.HTTP_201_CREATED
-        assert response.data["title"] == "Greeting Message"
-        assert response.data["user"] == user.id
+        assert response.data["data"]["title"] == "Greeting Message"
+        assert response.data["data"]["user"] == user.id
 
     def test_get_preset_message_list(self, authenticated_client, create_preset_message, create_user):
         client, user1 = authenticated_client()
@@ -80,9 +80,9 @@ class TestPresetMessageAPI:
         url = reverse("preset_message:preset-message-detail", args=[message.pk])
         response = client.get(url)
         assert response.status_code == status.HTTP_200_OK
-        assert response.data["id"] == message.pk
-        assert response.data["title"] == message.title
-        assert response.data["user"] == user.id
+        assert response.data["data"]["id"] == message.pk
+        assert response.data["data"]["title"] == message.title
+        assert response.data["data"]["user"] == user.id
 
     def test_update_preset_message(self, authenticated_client, create_preset_message):
         client, user = authenticated_client()
@@ -92,9 +92,9 @@ class TestPresetMessageAPI:
         data = {"title": "Updated Title", "content": "Updated content", "is_active": False}
         response = client.patch(url, data, format="json")
         assert response.status_code == status.HTTP_200_OK
-        assert response.data["title"] == "Updated Title"
-        assert response.data["content"] == "Updated content"
-        assert response.data["is_active"] == False
+        assert response.data["data"]["title"] == "Updated Title"
+        assert response.data["data"]["content"] == "Updated content"
+        assert response.data["data"]["is_active"] == False
 
     def test_delete_preset_message(self, authenticated_client, create_preset_message):
         client, user = authenticated_client()

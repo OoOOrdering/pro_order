@@ -59,10 +59,10 @@ class TestReviewAPI:
         data = {"order": order.id, "rating": 4, "comment": "매우 좋은 서비스입니다.", "is_public": True}
         response = self.client.post(self.list_url, data)
         assert response.status_code == status.HTTP_201_CREATED
-        assert response.data["rating"] == 4
-        assert response.data["comment"] == "매우 좋은 서비스입니다."
-        assert response.data["reviewer"] == self.user.id
-        assert response.data["is_public"] == True
+        assert response.data["data"]["rating"] == 4
+        assert response.data["data"]["comment"] == "매우 좋은 서비스입니다."
+        assert response.data["data"]["reviewer"] == self.user.id
+        assert response.data["data"]["is_public"] == True
 
     def test_create_review_for_incomplete_order_fails(self, create_order):
         order = create_order(user=self.user, status=Order.OrderStatus.PENDING)

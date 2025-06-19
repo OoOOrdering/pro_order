@@ -73,7 +73,7 @@ class TestOrderAPI:
             print("ORDER CREATE FAIL RESPONSE:", response.data)
         assert response.status_code == status.HTTP_201_CREATED
         assert Order.objects.count() == 1
-        assert OrderItem.objects.filter(order__id=response.data["id"]).count() == 1
+        assert OrderItem.objects.filter(order__id=response.data["data"]["id"]).count() == 1
 
     def test_get_order_list(self, api_client, authenticate_client, create_user, create_order):
         user = create_user()

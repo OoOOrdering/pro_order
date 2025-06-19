@@ -122,15 +122,21 @@ class UserFactory(factory.django.DjangoModelFactory):
 def user_factory(db):
     """
     User 인스턴스를 동적으로 생성하는 factory fixture
-    예시: user = user_factory(email="test@example.com")
+    예시: user = user_factory(email="test@example.com") 또는 user_factory("test@example.com", "pw")
     """
 
-    def create_user(**kwargs):
+    def create_user(*args, **kwargs):
+        # positional: (email, password)
+        if args:
+            if len(args) > 0:
+                kwargs["email"] = args[0]
+            if len(args) > 1:
+                kwargs["password"] = args[1]
         if "nickname" not in kwargs or kwargs["nickname"] is None:
-            # 랜덤 닉네임 생성
-            from utils.random_nickname import generate_random_nickname
+            # DB 중복 없는 닉네임 생성
+            from utils.random_nickname import generate_unique_numbered_nickname
 
-            kwargs["nickname"] = generate_random_nickname()
+            kwargs["nickname"] = generate_unique_numbered_nickname()
         if "email" not in kwargs or kwargs["email"] is None:
             import uuid
 
@@ -291,3 +297,10 @@ def test_generate_random_nickname():
     nickname = generate_random_nickname()
     assert isinstance(nickname, str)
     assert "_" in nickname
+
+
+@pytest.fixture(autouse=True)
+def mock_send_email_async():
+    """Celery 이메일 비동기 전송을 mock 처리합니다."""
+    with patch("utils.email.send_email_async.delay", return_value=None):
+        yield

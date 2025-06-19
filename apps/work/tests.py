@@ -87,8 +87,8 @@ class TestWorkAPI:
         response = api_client.post(url, data, format="json")
         assert response.status_code == status.HTTP_201_CREATED
         assert Work.objects.count() == 1
-        assert response.data["title"] == "Admin Created Work"
-        assert response.data["assignee"] == admin_user.pk  # Admin is default assignee
+        assert response.data["data"]["title"] == "Admin Created Work"
+        assert response.data["data"]["assignee"] == admin_user.pk  # Admin is default assignee
 
     def test_create_work_by_normal_user_fails(self, api_client, authenticate_client, create_order):
         normal_user = authenticate_client(is_staff=False)

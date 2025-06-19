@@ -37,11 +37,7 @@ class OrderListCreateView(BaseResponseMixin, generics.ListCreateAPIView):
 
     def get_queryset(self):
         # 예시: 필요한 필드만 조회
-        qs = (
-            Order.objects.select_related("user", "payment")
-            .prefetch_related("items")
-            .only("id", "user", "order_number", "status", "created_at")
-        )
+        qs = Order.objects.select_related("user", "payment").prefetch_related("items")
         if self.request.user.is_staff:
             return qs
         return qs.filter(user=self.request.user)

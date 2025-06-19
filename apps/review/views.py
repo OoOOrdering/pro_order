@@ -1,3 +1,5 @@
+import logging
+
 from django.db.models import Count, Q
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import filters, generics, permissions, status
@@ -10,6 +12,7 @@ from .serializers import ReviewCreateUpdateSerializer, ReviewSerializer
 
 
 class ReviewListCreateView(BaseResponseMixin, generics.ListCreateAPIView):
+    logger = logging.getLogger("apps")
     serializer_class = ReviewSerializer
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]  # 인증된 사용자만 생성, 누구나 조회
     filter_backends = [
@@ -77,7 +80,9 @@ class ReviewListCreateView(BaseResponseMixin, generics.ListCreateAPIView):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         self.perform_create(serializer)
-        data = serializer.data
+        # 생성된 인스턴스를 전체 필드로 직렬화
+        response_serializer = self.get_serializer(serializer.instance)
+        data = response_serializer.data
         self.logger.info(f"Review created by {request.user.email if request.user.is_authenticated else 'anonymous'}")
         return self.success(data=data, message="리뷰가 생성되었습니다.", status=201)
 

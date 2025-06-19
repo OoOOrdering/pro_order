@@ -74,7 +74,7 @@ class TestNoticeAPI:
         url = reverse("notice:notice-list-create")
         response = api_client.get(url)
         assert response.status_code == status.HTTP_200_OK
-        assert len(response.data["results"]) == 3
+        assert len(response.data["data"]["results"]) == 3
 
     def test_filter_notice_by_published_status(self, api_client, create_user, create_notice):
         user = create_user()
@@ -84,8 +84,8 @@ class TestNoticeAPI:
         url = reverse("notice:notice-list-create") + "?is_published=true"
         response = api_client.get(url)
         assert response.status_code == status.HTTP_200_OK
-        assert len(response.data["results"]) == 1
-        assert response.data["results"][0]["title"] == "Published Notice"
+        assert len(response.data["data"]["results"]) == 1
+        assert response.data["data"]["results"][0]["title"] == "Published Notice"
 
     def test_filter_notice_by_important_status(self, api_client, create_user, create_notice):
         user = create_user()
@@ -95,8 +95,8 @@ class TestNoticeAPI:
         url = reverse("notice:notice-list-create") + "?is_important=true"
         response = api_client.get(url)
         assert response.status_code == status.HTTP_200_OK
-        assert len(response.data["results"]) == 1
-        assert response.data["results"][0]["title"] == "Important Notice"
+        assert len(response.data["data"]["results"]) == 1
+        assert response.data["data"]["results"][0]["title"] == "Important Notice"
 
     def test_filter_notice_by_date_range(self, api_client, create_user, create_notice):
         user = create_user()
@@ -113,8 +113,8 @@ class TestNoticeAPI:
         )
         response = api_client.get(url)
         assert response.status_code == status.HTTP_200_OK
-        assert len(response.data["results"]) == 1
-        assert response.data["results"][0]["id"] == notice.pk
+        assert len(response.data["data"]["results"]) == 1
+        assert response.data["data"]["results"][0]["id"] == notice.pk
 
     def test_search_notice(self, api_client, create_user, create_notice):
         user = create_user()
@@ -124,13 +124,13 @@ class TestNoticeAPI:
         url = reverse("notice:notice-list-create") + "?search=Searchable"
         response = api_client.get(url)
         assert response.status_code == status.HTTP_200_OK
-        assert len(response.data["results"]) == 1
-        assert response.data["results"][0]["title"] == "Searchable Title"
+        assert len(response.data["data"]["results"]) == 1
+        assert response.data["data"]["results"][0]["title"] == "Searchable Title"
         url = reverse("notice:notice-list-create") + "?search=Unique"
         response = api_client.get(url)
         assert response.status_code == status.HTTP_200_OK
-        assert len(response.data["results"]) == 1
-        assert response.data["results"][0]["content"] == "Unique content"
+        assert len(response.data["data"]["results"]) == 1
+        assert response.data["data"]["results"][0]["content"] == "Unique content"
 
     def test_sort_notice(self, api_client, create_user, create_notice):
         user = create_user()
@@ -140,8 +140,8 @@ class TestNoticeAPI:
         url = reverse("notice:notice-list-create") + "?ordering=-view_count"
         response = api_client.get(url)
         assert response.status_code == status.HTTP_200_OK
-        assert response.data["results"][0]["view_count"] == 20
-        assert response.data["results"][1]["view_count"] == 10
+        assert response.data["data"]["results"][0]["view_count"] == 20
+        assert response.data["data"]["results"][1]["view_count"] == 10
 
     def test_get_notice_detail(self, api_client, create_user, create_notice):
         user = create_user()
@@ -150,8 +150,8 @@ class TestNoticeAPI:
         url = reverse("notice:notice-detail", kwargs={"pk": notice.pk})
         response = api_client.get(url)
         assert response.status_code == status.HTTP_200_OK
-        assert response.data["title"] == notice.title
-        assert response.data["view_count"] == 1
+        assert response.data["data"]["title"] == notice.title
+        assert response.data["data"]["view_count"] == 1
 
     def test_update_notice(self, api_client, create_user, create_notice):
         user = create_user()
@@ -209,7 +209,7 @@ class TestNoticeAPI:
         url = reverse("notice:recent-notice-list")
         response = api_client.get(url)
         assert response.status_code == status.HTTP_200_OK
-        assert len(response.data["results"]) == 5
+        assert len(response.data["data"]["results"]) == 5
 
     def test_unauthorized_access(self, api_client, create_notice, create_user):
         user = create_user("user3@example.com", "pass123")

@@ -467,7 +467,8 @@ class LogoutAPIView(BaseResponseMixin, APIView):
         return response
 
 
-class CustomTokenRefreshView(APIView):
+class CustomTokenRefreshView(BaseResponseMixin, APIView):
+    logger = logging.getLogger("apps")
     permission_classes = [AllowAny]
 
     @swagger_auto_schema(

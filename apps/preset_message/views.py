@@ -1,3 +1,5 @@
+import logging
+
 from django.db import models
 from django.db.models import Q
 from django_filters.rest_framework import DjangoFilterBackend
@@ -11,6 +13,7 @@ from .serializers import PresetMessageCreateUpdateSerializer, PresetMessageSeria
 
 
 class PresetMessageListCreateView(BaseResponseMixin, generics.ListCreateAPIView):
+    logger = logging.getLogger("apps")
     serializer_class = PresetMessageSerializer
     permission_classes = [permissions.IsAuthenticated]
     filter_backends = [
@@ -49,7 +52,9 @@ class PresetMessageListCreateView(BaseResponseMixin, generics.ListCreateAPIView)
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         self.perform_create(serializer)
-        data = serializer.data
+        # 생성된 인스턴스를 전체 필드로 직렬화
+        response_serializer = PresetMessageSerializer(serializer.instance)
+        data = response_serializer.data
         self.logger.info(
             f"PresetMessage created by {request.user.email if request.user.is_authenticated else 'anonymous'}"
         )
@@ -57,6 +62,7 @@ class PresetMessageListCreateView(BaseResponseMixin, generics.ListCreateAPIView)
 
 
 class PresetMessageDetailView(BaseResponseMixin, generics.RetrieveUpdateDestroyAPIView):
+    logger = logging.getLogger("apps")
     serializer_class = PresetMessageSerializer
     permission_classes = [permissions.IsAuthenticated]
     lookup_field = "pk"

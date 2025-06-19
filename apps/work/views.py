@@ -1,3 +1,5 @@
+import logging
+
 from django.db.models import Count
 from django.utils import timezone
 from django_filters.rest_framework import DjangoFilterBackend
@@ -10,6 +12,7 @@ from .serializers import WorkCreateUpdateSerializer, WorkSerializer
 
 
 class WorkListCreateView(BaseResponseMixin, generics.ListCreateAPIView):
+    logger = logging.getLogger("apps")
     serializer_class = WorkSerializer
     permission_classes = [permissions.IsAuthenticated]
     filter_backends = [
@@ -56,12 +59,15 @@ class WorkListCreateView(BaseResponseMixin, generics.ListCreateAPIView):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         self.perform_create(serializer)
-        data = serializer.data
+        # 생성된 인스턴스를 전체 필드로 직렬화
+        response_serializer = WorkSerializer(serializer.instance)
+        data = response_serializer.data
         self.logger.info(f"Work created by {request.user.email if request.user.is_authenticated else 'anonymous'}")
         return self.success(data=data, message="작업이 생성되었습니다.", status=201)
 
 
 class WorkDetailView(BaseResponseMixin, generics.RetrieveUpdateDestroyAPIView):
+    logger = logging.getLogger("apps")
     serializer_class = WorkSerializer
     permission_classes = [permissions.IsAuthenticated]
     lookup_field = "pk"

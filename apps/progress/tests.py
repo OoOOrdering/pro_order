@@ -24,7 +24,7 @@ class TestProgressAPI:
         response = client.post(url, data, format="json")
         assert response.status_code == status.HTTP_201_CREATED
         assert Progress.objects.count() == 1
-        assert response.data["status"] == "in_progress"
+        assert response.data["data"]["status"] == "in_progress"
 
     def test_get_progress_list(self, authenticated_client, create_order, create_progress):
         client, staff_user = authenticated_client(is_staff=True)
@@ -115,8 +115,8 @@ class TestProgressAPI:
         url = reverse("progress:progress-detail", args=[progress.pk])
         response = client.get(url)
         assert response.status_code == status.HTTP_200_OK
-        assert response.data["id"] == progress.pk
-        assert response.data["order"] == order.pk
+        assert response.data["data"]["id"] == progress.pk
+        assert response.data["data"]["order"] == order.pk
 
     def test_update_progress(self, authenticated_client, create_order, create_progress):
         client, staff_user = authenticated_client(is_staff=True)
@@ -131,8 +131,8 @@ class TestProgressAPI:
         }
         response = client.patch(url, update_data, format="json")
         assert response.status_code == status.HTTP_200_OK
-        assert response.data["status"] == "completed"
-        assert response.data["current_step"] == "Final Review"
+        assert response.data["data"]["status"] == "completed"
+        assert response.data["data"]["current_step"] == "Final Review"
 
     def test_delete_progress(self, authenticated_client, create_order, create_progress):
         client, staff_user = authenticated_client(is_staff=True)

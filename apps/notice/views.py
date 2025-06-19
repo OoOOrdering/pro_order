@@ -1,3 +1,4 @@
+import logging
 import typing
 
 from django.db.models import Count, Q
@@ -12,6 +13,7 @@ from .serializers import NoticeCreateUpdateSerializer, NoticeSerializer
 
 
 class NoticeListCreateView(BaseResponseMixin, generics.ListCreateAPIView):
+    logger = logging.getLogger("apps")
     """
     공지사항 목록을 조회하고 새로운 공지사항을 생성하는 뷰입니다.
 
@@ -89,8 +91,18 @@ class NoticeListCreateView(BaseResponseMixin, generics.ListCreateAPIView):
     def perform_create(self, serializer):
         serializer.save(author=self.request.user)
 
+    def list(self, request, *args, **kwargs):
+        queryset = self.filter_queryset(self.get_queryset())
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            # pagination response는 dict로 감싸서 self.success로 반환
+            return self.success(data={"results": serializer.data}, message="공지사항 목록 조회 성공")
+        serializer = self.get_serializer(queryset, many=True)
+        return self.success(data={"results": serializer.data}, message="공지사항 목록 조회 성공")
 
-class NoticeDetailView(generics.RetrieveUpdateDestroyAPIView):
+
+class NoticeDetailView(BaseResponseMixin, generics.RetrieveUpdateDestroyAPIView):
     """
     특정 공지사항의 상세 정보를 조회, 수정, 삭제하는 뷰입니다.
 
@@ -138,10 +150,11 @@ class NoticeDetailView(generics.RetrieveUpdateDestroyAPIView):
         instance.view_count += 1
         instance.save()
         serializer = self.get_serializer(instance)
-        return Response(serializer.data)
+        return self.success(data=serializer.data, message="공지사항 상세 조회 성공")
 
 
-class RecentNoticeListView(generics.ListAPIView):
+class RecentNoticeListView(BaseResponseMixin, generics.ListAPIView):
+    logger = logging.getLogger("apps")
     """
     최근 공지사항 목록을 조회하는 뷰입니다.
 
@@ -155,3 +168,8 @@ class RecentNoticeListView(generics.ListAPIView):
     def get_queryset(self):
         """게시된 공지사항 중 중요도와 생성일자를 기준으로 정렬된 최신 5개의 공지사항을 반환합니다."""
         return Notice.objects.filter(is_published=True).order_by("-created_at")[:5]
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.get_queryset()
+        serializer = self.get_serializer(queryset, many=True)
+        return self.success(data={"results": serializer.data}, message="최근 공지사항 목록 조회 성공")

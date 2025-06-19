@@ -1,3 +1,5 @@
+import logging
+
 from django.core.exceptions import PermissionDenied
 from django.db.models import Q
 from django_filters.rest_framework import DjangoFilterBackend
@@ -17,6 +19,7 @@ class IsStaffOrReadOnly(permissions.BasePermission):
 
 
 class ProgressListCreateView(BaseResponseMixin, generics.ListCreateAPIView):
+    logger = logging.getLogger("apps")
     queryset = Progress.objects.all()
     serializer_class = ProgressListSerializer
     permission_classes = [IsStaffOrReadOnly]
@@ -69,12 +72,15 @@ class ProgressListCreateView(BaseResponseMixin, generics.ListCreateAPIView):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         self.perform_create(serializer)
-        data = serializer.data
+        # 생성된 인스턴스를 전체 필드로 직렬화
+        response_serializer = ProgressListSerializer(serializer.instance)
+        data = response_serializer.data
         self.logger.info(f"Progress created by {request.user.email if request.user.is_authenticated else 'anonymous'}")
         return self.success(data=data, message="진행상황이 생성되었습니다.", status=201)
 
 
 class ProgressDetailView(BaseResponseMixin, generics.RetrieveUpdateDestroyAPIView):
+    logger = logging.getLogger("apps")
     queryset = Progress.objects.all()
     serializer_class = ProgressSerializer
     permission_classes = [IsStaffOrReadOnly]

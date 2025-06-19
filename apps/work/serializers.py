@@ -9,7 +9,7 @@ from .models import Work
 
 class WorkSerializer(BaseSerializer):
     order = OrderSerializer(read_only=True)
-    assignee = UserSerializer(read_only=True)
+    assignee = serializers.PrimaryKeyRelatedField(read_only=True)
     work_type_display = serializers.CharField(source="get_work_type_display", read_only=True)
     status_display = serializers.CharField(source="get_status_display", read_only=True)
 
