@@ -166,15 +166,16 @@ LOGGING = {
 }
 
 # Redis Cache Settings - 테스트 시에는 LocMemCache 사용
+CACHES: dict[str, Any]
 if TESTING:
-    CACHES: dict[str, Any] = {
+    CACHES = {
         "default": {
             "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
             "LOCATION": "unique-snowflake",
         }
     }
 else:
-    CACHES: dict[str, Any] = {
+    CACHES = {
         "default": {
             "BACKEND": "django_redis.cache.RedisCache",
             "LOCATION": ENV.get("REDIS_URL", "redis://127.0.0.1:6379/1"),
