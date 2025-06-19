@@ -7,34 +7,7 @@ For more information on this file, see
 https://docs.djangoproject.com/en/5.2/topics/settings/
 
 For the full list of settings and their values, see
-https://docs.d# Redis Cache Settings
-CACHES = {
-    "default": {
-        "BACKEND": "django_redis.cache.RedisCache",
-        "LOCATION": ENV.get("REDIS_URL", "redis://127.0.0.1:6379/1"),
-        "OPTIONS": {
-            "CLIENT_CLASS": "django_redis.client.DefaultClient",
-            "RETRY_ON_TIMEOUT": True,
-            "MAX_CONNECTIONS": 100,
-            "CONNECTION_POOL_KWARGS": {
-                "retry_on_timeout": True,
-                "socket_connect_timeout": 5,
-                "socket_timeout": 5,
-            },
-            "SOCKET_TIMEOUT": 5,
-            "SOCKET_CONNECT_TIMEOUT": 5,
-            "RETRY_TIMES": 3,
-            "IGNORE_EXCEPTIONS": True,
-        }
-    }
-}
-
-# Cache session backend
-SESSION_ENGINE = "django.contrib.sessions.backends.cache"
-SESSION_CACHE_ALIAS = "default"
-
-# Cache timeout settings
-CACHE_TTL = 60 * 15  # 15 minutesn/5.2/ref/settings/
+https://docs.d# Redis Cache Settings는 아래 TESTING 조건문에서만 정의
 """
 
 # 이메일 보낼 때 SSL 인증서 경로 인식 불가 시 설정
