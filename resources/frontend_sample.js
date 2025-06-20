@@ -1,7 +1,7 @@
 // 프론트엔드(React) 예시: roles별 인증/인가 및 Mock 응답 처리
 import axios from "axios";
 
-const API_BASE = "http://localhost:8000";
+const API_BASE = "http://3.34.108.96:8000";
 
 // JWT 토큰 예시 (실제 로그인 후 발급받은 토큰 사용)
 const adminToken = "<admin-access-token>";

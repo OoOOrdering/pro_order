@@ -61,6 +61,7 @@ THIRD_PARTY_APPS = [
     "django_filters",
     "corsheaders",
     "drf_yasg",
+    "channels",
 ]
 
 PROJECT_APPS = [
@@ -179,7 +180,7 @@ else:
     CACHES = {
         "default": {
             "BACKEND": "django_redis.cache.RedisCache",
-            "LOCATION": ENV.get("REDIS_URL", "redis://127.0.0.1:6379/1"),
+            "LOCATION": ENV.get("REDIS_URL", "redis://3.34.108.96:6379/1"),
             "OPTIONS": {
                 "CLIENT_CLASS": "django_redis.client.DefaultClient",
                 "RETRY_ON_TIMEOUT": True,
@@ -320,7 +321,7 @@ EMAIL_PORT = int(ENV.get("EMAIL_PORT", "587"))
 EMAIL_USE_TLS = ENV.get("EMAIL_USE_TLS", "True").lower() == "true"
 EMAIL_HOST_USER = ENV.get("EMAIL_HOST_USER", "")
 EMAIL_HOST_PASSWORD = ENV.get("EMAIL_HOST_PASSWORD", "")
-DEFAULT_FROM_EMAIL = ENV.get("DEFAULT_FROM_EMAIL", "webmaster@localhost")
+DEFAULT_FROM_EMAIL = ENV.get("DEFAULT_FROM_EMAIL", "webmaster@3.34.108.96")
 
 # Cloudinary settings
 CLOUDINARY_CLOUD_NAME = ENV.get("CLOUDINARY_CLOUD_NAME", "")
@@ -352,7 +353,7 @@ SIMPLE_JWT["REFRESH_TOKEN_NAME"] = "refresh_token"  # 쿠키명
 # 이메일/DB/클라우드 등 민감 정보는 반드시 ENV에서만 읽도록 유지
 
 # --- Celery 설정 ---
-CELERY_BROKER_URL = ENV.get("CELERY_BROKER_URL", "redis://127.0.0.1:6379/1")
+CELERY_BROKER_URL = ENV.get("CELERY_BROKER_URL", "redis://3.34.108.96:6379/1")
 CELERY_RESULT_BACKEND = ENV.get("CELERY_RESULT_BACKEND", CELERY_BROKER_URL)
 CELERY_ACCEPT_CONTENT = ["json"]
 CELERY_TASK_SERIALIZER = "json"
@@ -402,3 +403,11 @@ REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"] = {
     "order": "30/hour",
     "chat": "120/minute",
 }
+
+# CORS 설정 (개발용 전체 허용)
+CORS_ALLOW_ALL_ORIGINS = True  # 일단 개발용으로는 전체 허용
+
+# WebSocket 및 프론트엔드 연동용 CSRF 신뢰 도메인
+CSRF_TRUSTED_ORIGINS = [
+    "http://3.34.108.96:8000",
+]
