@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from .models import Notification
+from .models import Notification, NotificationToken, UserNotificationSetting
 
 
 class NotificationSerializer(serializers.ModelSerializer):
@@ -19,3 +19,17 @@ class NotificationSerializer(serializers.ModelSerializer):
 
         model = Notification
         fields = "__all__"
+
+
+class NotificationTokenSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = NotificationToken
+        fields = ("id", "user", "token", "provider", "is_active", "created_at", "updated_at")
+        read_only_fields = ("id", "user", "created_at", "updated_at")
+
+
+class UserNotificationSettingSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = UserNotificationSetting
+        fields = ("push_enabled", "email_enabled", "sms_enabled", "updated_at")
+        read_only_fields = ("updated_at",)

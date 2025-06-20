@@ -4,6 +4,7 @@ from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework import filters, generics, permissions
 
+from apps.user.permissions_role import IsAdmin
 from utils.response import BaseResponseMixin
 
 from .models import DailyAnalytics, EventLog
@@ -13,7 +14,7 @@ from .serializers import DailyAnalyticsSerializer, EventLogSerializer
 class DailyAnalyticsListView(generics.ListAPIView):
     queryset = DailyAnalytics.objects.all()
     serializer_class = DailyAnalyticsSerializer
-    permission_classes = [permissions.IsAdminUser]
+    permission_classes = [IsAdmin]
     filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
     filterset_fields = ["date"]
     ordering_fields = ["date"]
@@ -159,7 +160,7 @@ class AnalyticsDetailView(generics.RetrieveAPIView):
 
 class AnalyticsSummaryView(BaseResponseMixin, generics.ListAPIView):
     serializer_class = DailyAnalyticsSerializer
-    permission_classes = [permissions.IsAdminUser]
+    permission_classes = [IsAdmin]
 
     def get_queryset(self):
         # annotate/only/values 집계/필드최적화 예시
@@ -169,6 +170,38 @@ class AnalyticsSummaryView(BaseResponseMixin, generics.ListAPIView):
             avg_rating=Avg("review__rating"),
         ).only("user", "created_at")
         return qs
+
+
+class AnalyticsAdminView(generics.ListAPIView):
+    queryset = DailyAnalytics.objects.all()
+    serializer_class = DailyAnalyticsSerializer
+    permission_classes = [IsAdmin]
+    filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
+    filterset_fields = ["date"]
+    ordering_fields = ["date"]
+
+    def get_queryset(self):
+        if getattr(self, "swagger_fake_view", False):
+            return DailyAnalytics.objects.none()
+        queryset = super().get_queryset()
+        start_date = self.request.query_params.get("start_date")
+        end_date = self.request.query_params.get("end_date")
+
+        if start_date:
+            queryset = queryset.filter(date__gte=start_date)
+        if end_date:
+            queryset = queryset.filter(date__lte=end_date)
+        return queryset
+
+    @swagger_auto_schema(
+        tags=["Analytics"],
+        operation_summary="관리자 통계 조회",
+        operation_description="관리자 권한(role=admin)만 접근 가능.",
+        responses={200: "성공"},
+    )
+    def get(self, request):
+        # 관리자 통계 조회 로직
+        pass
 
 
 # 운영 자동화/모니터링 예시:

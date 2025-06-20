@@ -236,10 +236,12 @@ class TestFAQAPI:
 
         # 인증되지 않은 상태에서 API 접근 시도
         url = reverse("faq:faq-list-create")
+        api_client.force_authenticate(user=None)  # 인증 해제
         response = api_client.get(url)
         assert response.status_code == status.HTTP_200_OK  # 조회는 가능
 
         url = reverse("faq:faq-detail", kwargs={"pk": faq.pk})
+        api_client.force_authenticate(user=None)  # 인증 해제
         response = api_client.get(url)
         assert response.status_code == status.HTTP_401_UNAUTHORIZED  # 인증되지 않은 사용자의 접근
 

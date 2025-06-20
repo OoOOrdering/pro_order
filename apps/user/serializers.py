@@ -52,9 +52,7 @@ class RegisterSerializer(BaseSerializer):
     )
     nickname = serializers.CharField(
         required=True,
-        validators=[UniqueValidator(queryset=User.objects.all(), message=DUPLICATE_NICKNAME["message"])],
-    )
-    nickname = serializers.CharField(
+        max_length=10,
         validators=[UniqueValidator(queryset=User.objects.all(), message=DUPLICATE_NICKNAME["message"])],
     )
 
@@ -64,10 +62,8 @@ class RegisterSerializer(BaseSerializer):
             "id",
             "email",
             "nickname",
-            "name",
             "password",
             "password_confirm",
-            # "phone",  # 전화번호 필드는 기본 사용자 시리얼라이저에서 처리
         ]
 
     def validate(self, data):
@@ -82,13 +78,10 @@ class RegisterSerializer(BaseSerializer):
         if User.objects.filter(nickname=data.get("nickname")).exists():
             raise serializers.ValidationError(DUPLICATE_NICKNAME)
 
-        if not data.get("name"):
-            raise serializers.ValidationError({"name": "이름은 필수 입력 항목입니다."})
-        if profanity_filter.contains_profanity(data.get("name", "")):
-            raise serializers.ValidationError("이름에 부적절한 단어가 포함되어 있습니다.")
-
         if not data.get("nickname"):
             raise serializers.ValidationError({"nickname": "닉네임은 필수 입력 항목입니다."})
+        if len(data.get("nickname", "")) > 10:
+            raise serializers.ValidationError({"nickname": "닉네임은 최대 10글자까지 입력 가능합니다."})
         if profanity_filter.contains_profanity(data.get("nickname", "")):
             raise serializers.ValidationError("닉네임에 부적절한 단어가 포함되어 있습니다.")
 
@@ -128,7 +121,6 @@ class UserSerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "email",
-            "name",
             "nickname",
             "phone",
             "user_type",
@@ -167,17 +159,11 @@ class ProfileUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = [
-            "name",
             "nickname",
             "phone",
             "profile_image_file",  # 누락된 필드 추가
             # "profile_image", # GenericRelation이므로 직접 필드에 포함하지 않습니다.
         ]
-
-    def validate_name(self, value):
-        if profanity_filter.contains_profanity(value):
-            raise serializers.ValidationError("이름에 부적절한 단어가 포함되어 있습니다.")
-        return value
 
     def validate_nickname(self, value):
         instance = self.instance
@@ -225,7 +211,6 @@ class UserUpdateSerializer(serializers.ModelSerializer):
         model = User
         fields = [
             "email",
-            "name",
             "nickname",
             "phone",
             "user_type",
@@ -235,11 +220,6 @@ class UserUpdateSerializer(serializers.ModelSerializer):
             "is_superuser",
         ]
         read_only_fields = ["id"]
-
-    def validate_name(self, value):
-        if profanity_filter.contains_profanity(value):
-            raise serializers.ValidationError("이름에 부적절한 단어가 포함되어 있습니다.")
-        return value
 
     def validate_email(self, value):
         instance = self.instance

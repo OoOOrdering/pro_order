@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import Notification
+from .models import Notification, NotificationToken, UserNotificationSetting
 
 
 @admin.register(Notification)
@@ -16,3 +16,7 @@ class NotificationAdmin(admin.ModelAdmin):
     search_fields = ("title", "content", "user__nickname")
     raw_id_fields = ("user",)
     readonly_fields = ("created_at", "updated_at")
+
+
+admin.site.register(NotificationToken)
+admin.site.register(UserNotificationSetting)

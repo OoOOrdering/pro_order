@@ -1,5 +1,6 @@
 import typing
 
+from django.conf import settings
 from django.db import models
 
 
@@ -36,3 +37,39 @@ class Notification(models.Model):
     def __str__(self):
         """알림의 문자열 표현을 반환합니다."""
         return self.title
+
+
+class NotificationToken(models.Model):
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="notification_tokens",
+    )
+    token = models.CharField(max_length=256, unique=True)
+    provider = models.CharField(
+        max_length=32,
+        choices=[("fcm", "FCM"), ("onesignal", "OneSignal")],
+        default="fcm",
+    )
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.user} - {self.provider} - {self.token[:8]}..."
+
+
+class UserNotificationSetting(models.Model):
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="notification_setting",
+    )
+    push_enabled = models.BooleanField(default=True)
+    email_enabled = models.BooleanField(default=True)
+    sms_enabled = models.BooleanField(default=False)
+    # ... 기타 알림 타입별 on/off 필드 ...
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.user} 알림설정"

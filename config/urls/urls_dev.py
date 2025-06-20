@@ -55,7 +55,7 @@ urlpatterns = [
     path("chat-rooms/", include("apps.chat_message.urls")),  # chat_message 엔드포인트를 chat-rooms로 변경
     path("dashboard/", include("apps.dashboard_summary.urls")),
     path("faqs/", include("apps.faq.urls")),
-    path("likes/", include("apps.like.urls")),
+    path("like/", include("apps.like.urls", namespace="like")),
     path("notices/", include("apps.notice.urls")),
     path("notifications/", include("apps.notification.urls")),
     path("preset-messages/", include("apps.preset_message.urls")),

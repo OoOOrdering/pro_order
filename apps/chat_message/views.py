@@ -6,11 +6,13 @@ from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework import filters, generics, permissions
 from rest_framework.response import Response
+from rest_framework.throttling import AnonRateThrottle, UserRateThrottle
 
 from utils.response import BaseResponseMixin
 
 from .models import ChatMessage
 from .serializers import ChatMessageCreateSerializer, ChatMessageSerializer, ChatMessageUpdateSerializer
+from .throttles import ChatRateThrottle
 
 
 class ChatMessageListCreateView(BaseResponseMixin, generics.ListCreateAPIView):
@@ -25,6 +27,7 @@ class ChatMessageListCreateView(BaseResponseMixin, generics.ListCreateAPIView):
     search_fields = ["content", "file_url"]
     ordering_fields = ["timestamp", "message_type"]
     pagination_class = None  # 페이지네이션 비활성화
+    throttle_classes = [UserRateThrottle, AnonRateThrottle, ChatRateThrottle]
 
     def get_queryset(self):
         if getattr(self, "swagger_fake_view", False):

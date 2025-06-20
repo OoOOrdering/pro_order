@@ -3,8 +3,11 @@ from rest_framework import serializers
 from apps.cs_post.models import CSPost
 from apps.cs_post.serializers import CSPostSerializer
 from apps.user.serializers import UserSerializer
+from utils.profanity_filter import ProfanityFilter
 
 from .models import CSReply
+
+profanity_filter = ProfanityFilter()
 
 
 class CSPostMinimalSerializer(serializers.ModelSerializer):
@@ -28,10 +31,20 @@ class CSReplySerializer(serializers.ModelSerializer):
 class CSReplyCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = CSReply
-        fields = ("content",)  # post는 URL에서 가져오므로 제외
+        fields = ("content",)
+
+    def validate(self, attrs):
+        if profanity_filter.contains_profanity(attrs.get("content", "")):
+            raise serializers.ValidationError({"content": "답변 내용에 부적절한 단어가 포함되어 있습니다."})
+        return attrs
 
 
 class CSReplyUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = CSReply
         fields = ("content",)
+
+    def validate(self, attrs):
+        if profanity_filter.contains_profanity(attrs.get("content", "")):
+            raise serializers.ValidationError({"content": "답변 내용에 부적절한 단어가 포함되어 있습니다."})
+        return attrs

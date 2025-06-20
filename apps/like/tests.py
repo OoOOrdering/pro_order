@@ -71,6 +71,8 @@ class TestLikeAPI:
         order_content_type = ContentType.objects.get_for_model(Order)
         url = reverse("like:like-list-create")
         data = {"content_type": order_content_type.pk, "object_id": order.pk}
+        print(f"[TEST] POST URL: {url}")
+        print(f"[TEST] AUTH HEADER: {api_client._credentials}")
         response = api_client.post(url, data, format="json")
         assert response.status_code == status.HTTP_201_CREATED
         assert Like.objects.count() == 1
@@ -85,6 +87,8 @@ class TestLikeAPI:
         order_content_type = ContentType.objects.get_for_model(Order)
         url = reverse("like:like-list-create")
         data = {"content_type": order_content_type.pk, "object_id": order.pk}
+        print(f"[TEST] POST URL: {url}")
+        print(f"[TEST] AUTH HEADER: {api_client._credentials}")
         response = api_client.post(url, data, format="json")
         assert response.status_code == status.HTTP_400_BAD_REQUEST
         assert "You have already liked this item." in str(response.data)
@@ -96,6 +100,8 @@ class TestLikeAPI:
         create_like(user=user, content_object=order1)
         create_like(user=user, content_object=order2)
         url = reverse("like:like-list-create")
+        print(f"[TEST] GET URL: {url}")
+        print(f"[TEST] AUTH HEADER: {api_client._credentials}")
         response = api_client.get(url)
         assert response.status_code == status.HTTP_200_OK
         assert len(response.data["results"]) == 2
@@ -110,6 +116,8 @@ class TestLikeAPI:
         like_order1 = create_like(user=user, content_object=order1)
 
         url = reverse("like:like-list-create") + f"?content_type={order_content_type.pk}"
+        print(f"[TEST] GET URL: {url}")
+        print(f"[TEST] AUTH HEADER: {api_client._credentials}")
         response = api_client.get(url)
         assert response.status_code == status.HTTP_200_OK
         assert len(response.data["results"]) == 1
@@ -125,6 +133,8 @@ class TestLikeAPI:
         like2 = create_like(user=user, content_object=order2)
 
         url = reverse("like:like-list-create") + f"?object_id={order1.pk}"
+        print(f"[TEST] GET URL: {url}")
+        print(f"[TEST] AUTH HEADER: {api_client._credentials}")
         response = api_client.get(url)
         assert response.status_code == status.HTTP_200_OK
         assert len(response.data["results"]) == 1

@@ -394,3 +394,11 @@ if SENTRY_DSN:
 # drf-yasg: INSTALLED_APPS에 'drf_yasg' 추가, urls.py에 schema_view 등록
 # Django Debug Toolbar: INSTALLED_APPS/MIDDLEWARE에 'debug_toolbar' 추가, INTERNAL_IPS 설정
 # 운영 자동화/모니터링 도구는 prod/local 환경에 맞게 분기 적용 권장
+
+# Throttling settings
+REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"] = {
+    "user": "1000/day",
+    "anon": "100/day",
+    "order": "30/hour",
+    "chat": "120/minute",
+}

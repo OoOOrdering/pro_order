@@ -126,6 +126,8 @@ def user_factory(db):
     """
 
     def create_user(*args, **kwargs):
+        import uuid  # nickname/email 기본값 생성에 사용
+
         # positional: (email, password)
         if args:
             if len(args) > 0:
@@ -133,14 +135,17 @@ def user_factory(db):
             if len(args) > 1:
                 kwargs["password"] = args[1]
         if "nickname" not in kwargs or kwargs["nickname"] is None:
-            # DB 중복 없는 닉네임 생성
-            from utils.random_nickname import generate_unique_numbered_nickname
-
-            kwargs["nickname"] = generate_unique_numbered_nickname()
+            kwargs["nickname"] = f"testuser_{uuid.uuid4().hex[:8]}"
         if "email" not in kwargs or kwargs["email"] is None:
-            import uuid
-
             kwargs["email"] = f"user_{uuid.uuid4().hex[:8]}@example.com"
+        # is_staff=True면 role도 admin으로 자동 지정
+        if kwargs.get("is_staff"):
+            kwargs["role"] = "admin"
+        # 테스트 기본값: 활성화 및 이메일 인증 True
+        if "is_active" not in kwargs:
+            kwargs["is_active"] = True
+        if "is_email_verified" not in kwargs:
+            kwargs["is_email_verified"] = True
         return UserFactory.create(**kwargs)
 
     return create_user
@@ -288,15 +293,6 @@ def create_user(user_factory):
 def another_user(user_factory):
     """채팅방 등에서 인증되지 않은 다른 사용자 fixture"""
     return user_factory()
-
-
-# 유틸 함수 단위테스트 예시 (pytest)
-def test_generate_random_nickname():
-    from utils.random_nickname import generate_random_nickname
-
-    nickname = generate_random_nickname()
-    assert isinstance(nickname, str)
-    assert "_" in nickname
 
 
 @pytest.fixture(autouse=True)

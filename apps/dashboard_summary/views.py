@@ -3,6 +3,7 @@ from drf_yasg.utils import swagger_auto_schema
 from rest_framework import generics, permissions
 from rest_framework.response import Response
 
+from apps.user.permissions_role import IsAdmin
 from utils.response import BaseResponseMixin
 
 from .models import DashboardSummary
@@ -12,7 +13,7 @@ from .serializers import DashboardSummarySerializer
 class DashboardSummaryListView(BaseResponseMixin, generics.ListAPIView):
     queryset = DashboardSummary.objects.all().order_by("-last_updated")
     serializer_class = DashboardSummarySerializer
-    permission_classes = [permissions.IsAdminUser]  # 관리자만 접근 가능
+    permission_classes = [permissions.IsAuthenticated, IsAdmin]  # 인증 + 관리자만 접근 가능
     filterset_fields = ["user"]  # 사용자별 필터링
 
     @swagger_auto_schema(
@@ -58,7 +59,7 @@ class DashboardSummaryListView(BaseResponseMixin, generics.ListAPIView):
 
 class DashboardSummaryView(BaseResponseMixin, generics.RetrieveAPIView):
     serializer_class = DashboardSummarySerializer
-    permission_classes = [permissions.IsAdminUser]  # 관리자만 접근 가능
+    permission_classes = [permissions.IsAuthenticated, IsAdmin]  # 인증 + 관리자만 접근 가능
 
     @swagger_auto_schema(
         operation_summary="대시보드 요약 정보 상세 조회",

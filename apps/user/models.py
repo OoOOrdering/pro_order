@@ -80,7 +80,6 @@ class User(AbstractBaseUser, TimestampModel):  # 기본 기능은 상속받아�
     email_verification_token = models.CharField(_("이메일 인증 토큰"), max_length=100, blank=True)
     created_at = models.DateTimeField(_("생성일"), auto_now_add=True)
     updated_at = models.DateTimeField(_("수정일"), auto_now=True)
-    name = models.CharField(verbose_name="이름", max_length=25)
     nickname = models.CharField("닉네임", max_length=25, unique=True)
     # profile_images는 실제 필드로 DB에 만들어지지 않음 → 대신 역참조용 헬퍼 역할 (GenericRelation)
     profile_images = GenericRelation(Image, related_query_name="profile_image")
@@ -97,6 +96,12 @@ class User(AbstractBaseUser, TimestampModel):  # 기본 기능은 상속받아�
         null=True,
         blank=True,
     )
+    ROLE_CHOICES = [
+        ("admin", "관리자"),
+        ("manager", "매니저"),
+        ("user", "일반회원"),
+    ]
+    role = models.CharField(max_length=20, choices=ROLE_CHOICES, default="user", verbose_name="역할")
 
     # 사용자 지정 메니져
     # User.objects.all()   <- objects가 메니져
@@ -113,7 +118,7 @@ class User(AbstractBaseUser, TimestampModel):  # 기본 기능은 상속받아�
 
     def get_full_name(self):  # 사용자의 전체 이름(Full name)을 반환. 성과 이름을 합침
         # return f"{self.first_name} {self.last_name}"
-        return self.name
+        return self.nickname
 
     def get_short_name(self):  # 일반적으로 닉네임, 이름(first name) 등을 반환
         return self.nickname

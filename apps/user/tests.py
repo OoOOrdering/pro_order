@@ -44,7 +44,6 @@ def test_signup_user(api_client):
         "password": "Qwer1234!",
         "password_confirm": "Qwer1234!",
         "nickname": "testuser",
-        "name": "테스트",
     }
     response = api_client.post(url, data, format="json")
     assert response.status_code == status.HTTP_201_CREATED
@@ -128,7 +127,6 @@ class TestUserAPI(APITestCase):
         self.user = User.objects.create_user(
             email="test@example.com",
             password="testpass123!",
-            name="Test User",
             nickname="testuser",
             is_active=True,
             is_email_verified=False,
@@ -136,12 +134,12 @@ class TestUserAPI(APITestCase):
         self.admin = User.objects.create_user(
             email="admin@example.com",
             password="Adminpass123!",
-            name="Admin User",
             nickname="adminuser",
             is_staff=True,
             is_superuser=True,
             is_active=True,
             is_email_verified=True,
+            role="admin",
         )
 
     def test_user_registration(self):
@@ -150,7 +148,6 @@ class TestUserAPI(APITestCase):
             "email": "newuser@example.com",
             "password": "Newpass123!",
             "password_confirm": "Newpass123!",
-            "name": "New User",
             "nickname": "newuser",
         }
         with patch("utils.email.send_email_async.delay") as mock_email:
@@ -210,12 +207,11 @@ class TestUserAPI(APITestCase):
 
         # 프로필 업데이트
         url = reverse("user:user-profile")
-        data = {"name": "Updated Name", "nickname": "updateduser"}
+        data = {"nickname": "updateduser"}
         response = self.client.patch(url, data, format="json")
 
         assert response.status_code == status.HTTP_200_OK
         self.user.refresh_from_db()
-        assert self.user.name == "Updated Name"
         assert self.user.nickname == "updateduser"
 
     def test_user_deactivation(self):
@@ -280,7 +276,6 @@ class TestUserAPI(APITestCase):
             "email": "test@example.com",
             "password": "newpass123!",
             "password_confirm": "newpass123!",
-            "name": "New User",
             "nickname": "newuser",
         }
         response = self.client.post(url, data, format="json")
@@ -292,7 +287,6 @@ class TestUserAPI(APITestCase):
             "email": "anotheruser@example.com",
             "password": "newpass123!",
             "password_confirm": "newpass123!",
-            "name": "New User",
             "nickname": "testuser",
         }
         response = self.client.post(url, data, format="json")

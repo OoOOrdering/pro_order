@@ -4,6 +4,7 @@ from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework import filters, generics, permissions
 
+from apps.user.permissions_role import IsAdmin
 from utils.response import BaseResponseMixin
 
 from .models import FAQ
@@ -99,7 +100,7 @@ class FAQListCreateView(BaseResponseMixin, generics.ListCreateAPIView):
 class FAQDetailView(generics.RetrieveUpdateDestroyAPIView):
     queryset = FAQ.objects.all()
     serializer_class = FAQSerializer
-    permission_classes = [permissions.IsAdminUser]
+    permission_classes = [permissions.IsAuthenticated, IsAdmin]
     lookup_field = "pk"
 
     @swagger_auto_schema(

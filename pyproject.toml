@@ -28,7 +28,9 @@ dependencies = [
     "django-redis>=6.0.0,<7.0.0",
     "pytest-django (>=4.11.1,<5.0.0)",
     "fakeredis (>=2.30.0,<3.0.0)",
-    "celery (>=5.5.3,<6.0.0)"
+    "celery (>=5.5.3,<6.0.0)",
+    "channels (>=4.2.2,<5.0.0)",
+    "channels-redis (>=4.2.1,<5.0.0)"
 ]
 
 [project.optional-dependencies]

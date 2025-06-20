@@ -10,8 +10,10 @@ from drf_yasg.utils import swagger_auto_schema
 from reportlab.pdfgen import canvas
 from rest_framework import filters, generics, permissions, serializers, status
 from rest_framework.response import Response
+from rest_framework.throttling import AnonRateThrottle, UserRateThrottle
 from rest_framework.views import APIView
 
+from apps.user.permissions_role import IsAdmin
 from utils.response import BaseResponseMixin
 
 from .models import Order
@@ -22,6 +24,7 @@ from .serializers import (
     OrderSerializer,
     OrderUpdateSerializer,
 )
+from .throttles import OrderRateThrottle
 
 
 class OrderListCreateView(BaseResponseMixin, generics.ListCreateAPIView):
@@ -36,6 +39,7 @@ class OrderListCreateView(BaseResponseMixin, generics.ListCreateAPIView):
     filterset_fields = ["status", "payment_method", "payment_status"]
     search_fields = ["order_number", "shipping_name", "shipping_phone"]
     ordering_fields = ["created_at", "total_amount", "status"]
+    throttle_classes = [UserRateThrottle, AnonRateThrottle, OrderRateThrottle]
 
     def get_queryset(self):
         if getattr(self, "swagger_fake_view", False):
@@ -191,7 +195,7 @@ class OrderCancelView(APIView):
 
 
 class OrderRefundView(APIView):
-    permission_classes = [permissions.IsAdminUser]  # 관리자만 환불 가능
+    permission_classes = [IsAdmin]  # 관리자만 환불 가능
 
     @swagger_auto_schema(
         operation_summary="주문 환불",

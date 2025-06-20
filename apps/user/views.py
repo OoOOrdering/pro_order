@@ -25,6 +25,7 @@ from rest_framework_simplejwt.serializers import TokenRefreshSerializer
 from rest_framework_simplejwt.views import TokenObtainPairView
 
 from apps.user.models import User
+from apps.user.permissions_role import IsAdmin, IsManager, IsUser
 from apps.user.serializers import (
     EmailVerificationSerializer,
     LogoutSerializer,
@@ -874,7 +875,7 @@ class UserListView(BaseResponseMixin, APIView):
     관리자만 접근 가능한 사용자 목록 조회 API입니다.
     """
 
-    permission_classes = [permissions.IsAdminUser]
+    permission_classes = [IsAdmin]
     authentication_classes = [JWTAuthentication]
     logger = logging.getLogger("apps")
 

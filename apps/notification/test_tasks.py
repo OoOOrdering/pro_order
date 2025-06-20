@@ -10,9 +10,7 @@ from apps.user.models import User
 
 @pytest.mark.django_db
 def test_send_reminder_notification_creates_notification_and_sends_email():
-    user = User.objects.create_user(
-        email="reminder@example.com", password="testpass123!", nickname="reminderuser", name="리마인더유저"
-    )
+    user = User.objects.create_user(email="reminder@example.com", password="testpass123!", nickname="reminderuser")
     title = "테스트 리마인더"
     content = "리마인더 알림 내용"
     with patch("utils.email.send_email_async.delay") as mock_email:
@@ -28,9 +26,7 @@ def test_send_reminder_notification_creates_notification_and_sends_email():
 
 @pytest.mark.django_db
 def test_daily_cleanup_deletes_old_notifications():
-    user = User.objects.create_user(
-        email="cleanup@example.com", password="testpass123!", nickname="cleanupuser", name="클린업유저"
-    )
+    user = User.objects.create_user(email="cleanup@example.com", password="testpass123!", nickname="cleanupuser")
     old_notification = Notification.objects.create(
         user=user,
         title="오래된 알림",

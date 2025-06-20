@@ -17,7 +17,6 @@ def setup_admin_user(db, create_user, request):
                 email="admin@example.com",
                 password="Adminpass123!",
                 nickname="admin",
-                name="Admin User",
                 is_active=True,
                 is_email_verified=True,
                 is_staff=True,
@@ -32,7 +31,6 @@ class UserProfileViewTest(TestCase):
             email="test@example.com",
             password="Test123!@#",
             nickname="testuser",
-            name="Test User",
             is_active=True,
             is_email_verified=True,
         )
@@ -48,7 +46,7 @@ class UserProfileViewTest(TestCase):
 
     def test_update_profile(self):
         """프로필 수정 테스트."""
-        data = {"nickname": "new_nickname", "name": "New Name"}
+        data = {"nickname": "new_nickname"}
         response = self.client.patch(self.url, data)
         assert response.status_code == status.HTTP_200_OK
         assert response.data["code"] == 200
@@ -75,7 +73,6 @@ class UserListViewTest(TestCase):
                 email=f"user{i}@example.com",
                 password="Test123!@#",
                 nickname=f"user{i}",
-                name=f"User {i}",
             )
 
     def test_list_users(self):

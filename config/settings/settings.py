@@ -8,3 +8,14 @@ if env == "prod":
     from .prod import *  # noqa: F403
 else:
     from .local import *  # noqa: F403
+
+ASGI_APPLICATION = "config.asgi.application"
+
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels_redis.core.RedisChannelLayer",
+        "CONFIG": {
+            "hosts": ["redis://localhost:6379/1"],
+        },
+    },
+}

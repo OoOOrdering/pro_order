@@ -26,7 +26,9 @@ def user(db):
 
 @pytest.fixture
 def admin_user(db):
-    return User.objects.create_superuser(email="admin@example.com", password="testpass123!", nickname="admin_user")
+    return User.objects.create_superuser(
+        email="admin@example.com", password="testpass123!", nickname="admin_user", role="admin"
+    )
 
 
 @pytest.fixture
@@ -86,7 +88,7 @@ class TestDashboardSummary:
 
     def test_list_dashboard_summary_as_admin(self, api_client, authenticate_client, admin_user, dashboard_summary):
         """관리자 권한으로 대시보드 요약 목록 조회"""
-        authenticate_client(admin_user)
+        api_client.force_authenticate(user=admin_user)
         url = reverse("dashboard_summary:dashboard-list")
         response = api_client.get(url)
 
@@ -107,7 +109,7 @@ class TestDashboardSummary:
         self, api_client, authenticate_client, admin_user, dashboard_summary
     ):
         """관리자 권한으로 전역 대시보드 요약 조회"""
-        authenticate_client(admin_user)
+        api_client.force_authenticate(user=admin_user)
         url = reverse("dashboard_summary:dashboard-global")
         response = api_client.get(url)
 
@@ -127,7 +129,7 @@ class TestDashboardSummary:
 
     def test_retrieve_dashboard_detail_as_admin(self, api_client, authenticate_client, admin_user, dashboard_summary):
         """관리자 권한으로 특정 대시보드 요약 상세 조회"""
-        authenticate_client(admin_user)
+        api_client.force_authenticate(user=admin_user)
         url = reverse("dashboard_summary:dashboard-detail", kwargs={"pk": dashboard_summary.pk})
         response = api_client.get(url)
 

@@ -2,8 +2,11 @@ from django.conf import settings
 from rest_framework import serializers
 
 from apps.user.serializers import UserSerializer
+from utils.profanity_filter import ProfanityFilter
 
 from .models import CSPost
+
+profanity_filter = ProfanityFilter()
 
 
 class CSPostSerializer(serializers.ModelSerializer):
@@ -58,6 +61,10 @@ class CSPostCreateSerializer(serializers.ModelSerializer):
     def validate(self, attrs):
         attachment_url = attrs.pop("attachment_url", None)
         # TODO: 필요한 경우 attachment_url을 처리하여 attachment 필드에 저장
+        if profanity_filter.contains_profanity(attrs.get("title", "")):
+            raise serializers.ValidationError({"title": "제목에 부적절한 단어가 포함되어 있습니다."})
+        if profanity_filter.contains_profanity(attrs.get("content", "")):
+            raise serializers.ValidationError({"content": "내용에 부적절한 단어가 포함되어 있습니다."})
         return attrs
 
 

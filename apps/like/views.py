@@ -41,6 +41,9 @@ class LikeListCreateView(BaseResponseMixin, generics.ListCreateAPIView):
         },
     )
     def get(self, request, *args, **kwargs):
+        self.logger.info(
+            f"[LikeListCreateView][GET] user: {request.user}, is_authenticated: {request.user.is_authenticated}, is_active: {getattr(request.user, 'is_active', None)}, is_email_verified: {getattr(request.user, 'is_email_verified', None)}, role: {getattr(request.user, 'role', None)}"
+        )
         return super().get(request, *args, **kwargs)
 
     @swagger_auto_schema(
@@ -54,6 +57,9 @@ class LikeListCreateView(BaseResponseMixin, generics.ListCreateAPIView):
         },
     )
     def post(self, request, *args, **kwargs):
+        self.logger.info(
+            f"[LikeListCreateView][POST] user: {request.user}, is_authenticated: {request.user.is_authenticated}, is_active: {getattr(request.user, 'is_active', None)}, is_email_verified: {getattr(request.user, 'is_email_verified', None)}, role: {getattr(request.user, 'role', None)}"
+        )
         return super().post(request, *args, **kwargs)
 
     def get_queryset(self):
@@ -96,6 +102,9 @@ class LikeDestroyView(BaseResponseMixin, generics.DestroyAPIView):
         },
     )
     def delete(self, request, *args, **kwargs):
+        self.logger.info(
+            f"[LikeDestroyView][DELETE] user: {request.user}, is_authenticated: {request.user.is_authenticated}, is_active: {getattr(request.user, 'is_active', None)}, is_email_verified: {getattr(request.user, 'is_email_verified', None)}, role: {getattr(request.user, 'role', None)}"
+        )
         return super().delete(request, *args, **kwargs)
 
     def get_queryset(self):

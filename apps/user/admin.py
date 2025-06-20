@@ -8,14 +8,14 @@ from apps.user.models import User
 class CustomUserCreationForm(UserCreationForm):
     class Meta:
         model = User
-        fields = ("email", "nickname", "name")
+        fields = ("email", "nickname")
 
 
 # 유저 수정용 폼
 class CustomUserChangeForm(UserChangeForm):
     class Meta:
         model = User
-        fields = ("email", "nickname", "name", "is_active", "is_staff", "is_superuser")
+        fields = ("email", "nickname", "is_active", "is_staff", "is_superuser")
 
 
 @admin.register(User)
@@ -28,7 +28,6 @@ class UserAdmin(admin.ModelAdmin):
         "id",
         "email",
         "nickname",
-        "name",
         "is_active",
         "is_staff",
         "is_superuser",
@@ -40,12 +39,11 @@ class UserAdmin(admin.ModelAdmin):
         "is_staff",
         "is_superuser",
     )  # 필터 사이드바에 표시할 필드
-    search_fields = ("email", "nickname", "name")  # 검색창을 통해 검색할 수 있는 필드
+    search_fields = ("email", "nickname")  # 검색창을 통해 검색할 수 있는 필드
     ordering = ("-created_at",)  # 생성일 기준으로 최신순 정렬
     list_display_links = (
         "email",
         "nickname",
-        "name",
     )  # 목록에서 content를 클릭하면 상세 페이지로 이동
     readonly_fields = ("created_at", "updated_at")
 
@@ -55,13 +53,13 @@ class UserAdmin(admin.ModelAdmin):
             return (
                 (
                     "기본 정보",
-                    {"fields": ("email", "nickname", "name", "password1", "password2")},
+                    {"fields": ("email", "nickname", "password1", "password2")},
                 ),
                 ("권한", {"fields": ("is_active", "is_staff", "is_superuser")}),
             )
         # 유저 수정 페이지
         return (
-            ("기본 정보", {"fields": ("email", "nickname", "name")}),
+            ("기본 정보", {"fields": ("email", "nickname")}),
             ("권한", {"fields": ("is_active", "is_staff", "is_superuser")}),
             ("기타 정보", {"fields": ("created_at", "updated_at")}),
         )
